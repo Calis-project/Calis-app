@@ -1,12 +1,10 @@
-# 04 — Data Model
+# Technical Plan
 
-## Data Model Principle
+## Data Model
 
-The MVP should use a simple rule-based data model.
+The MVP should use a simple rule-based data model. It can include small AI-ready fields, but the app must work without AI.
 
-The data model can include small AI-ready fields, but the app must work without AI.
-
-## Core Entities
+Core entities:
 
 | Entity | Purpose | MVP |
 |---|---|---|
@@ -19,7 +17,7 @@ The data model can include small AI-ready fields, but the app must work without 
 | AISettings | Future optional AI settings | No |
 | AIRequestLog | Future AI request log | No |
 
-## UserProfile
+UserProfile:
 
 ```json
 {
@@ -37,7 +35,7 @@ The data model can include small AI-ready fields, but the app must work without 
 }
 ```
 
-## Exercise
+Exercise:
 
 ```json
 {
@@ -71,7 +69,7 @@ The data model can include small AI-ready fields, but the app must work without 
 }
 ```
 
-## WorkoutTemplate
+WorkoutTemplate:
 
 ```json
 {
@@ -87,7 +85,7 @@ The data model can include small AI-ready fields, but the app must work without 
 }
 ```
 
-## WorkoutSession
+WorkoutSession:
 
 ```json
 {
@@ -112,7 +110,7 @@ The data model can include small AI-ready fields, but the app must work without 
 }
 ```
 
-## WorkoutCompletion
+WorkoutCompletion:
 
 ```json
 {
@@ -131,7 +129,7 @@ The data model can include small AI-ready fields, but the app must work without 
 }
 ```
 
-## FeedbackEntry
+FeedbackEntry:
 
 ```json
 {
@@ -148,86 +146,16 @@ The data model can include small AI-ready fields, but the app must work without 
 
 ## Enums
 
-### fitness_level
-
 ```txt
-beginner
-some_experience
-intermediate
-```
-
-### workout_type
-
-```txt
-minimum
-standard
-extended
-comeback
-mobility
-recovery
-```
-
-### generated_by
-
-```txt
-rule_based
-manual
-ai_assisted
-```
-
-### difficulty
-
-```txt
-very_easy
-beginner
-easy
-moderate
-challenging
-```
-
-### movement_type
-
-```txt
-strength
-mobility
-cardio_low_impact
-cardio_high_impact
-balance
-stretching
-warmup
-cooldown
-```
-
-### space_required
-
-```txt
-yoga_mat
-small_room
-large_room
-```
-
-### noise_level
-
-```txt
-quiet
-moderate
-noisy
-```
-
-### impact_level
-
-```txt
-low
-medium
-high
-```
-
-### risk_level
-
-```txt
-low
-medium
-high
+fitness_level: beginner, some_experience, intermediate
+workout_type: minimum, standard, extended, comeback, mobility, recovery
+generated_by: rule_based, manual, ai_assisted
+difficulty: very_easy, beginner, easy, moderate, challenging
+movement_type: strength, mobility, cardio_low_impact, cardio_high_impact, balance, stretching, warmup, cooldown
+space_required: yoga_mat, small_room, large_room
+noise_level: quiet, moderate, noisy
+impact_level: low, medium, high
+risk_level: low, medium, high
 ```
 
 ## Rule-Based Workout Generation
@@ -246,9 +174,17 @@ include easier alternatives
 return workout session
 ```
 
-## AI Compatibility Notes
+For MVP implementation, use:
 
-These fields are AI-ready but do not require AI now:
+```json
+{
+  "generated_by": "rule_based",
+  "ai_enabled": false,
+  "ai_assisted": false
+}
+```
+
+AI-ready fields that do not require AI now:
 
 - `ai_enabled`
 - `ai_allowed`
@@ -264,3 +200,31 @@ risk_level != high
 ```
 
 AI-generated workouts should later pass a rule-based safety validator before being shown.
+
+## MVP Build Order
+
+1. Project setup: frontend framework, backend if needed, database or local storage, routing, and basic layout.
+2. Data models: `UserProfile`, `Exercise`, `WorkoutTemplate`, `WorkoutSession`, `WorkoutCompletion`, and `FeedbackEntry`.
+3. Exercise seed data: wall push-up, sit-to-stand, step jack, knee plank, dead bug, glute bridge, shoulder rolls, marching in place, calf raises, and gentle mobility exercises.
+4. Onboarding: fitness level, goal, minimum time, space, noise, equipment, and sensitive areas.
+5. Rule-based workout generator: `profile + daily_state + missed_days -> filter exercises -> select template -> create workout session`.
+6. Today screen: greeting, day-state prompt, workout options, and comeback message when needed.
+7. Workout session: overview, exercise screen, timer/reps, easier alternative, pause/skip, and completion button.
+8. Completion tracking: workout metadata, comeback flag, minimum flag, alternatives used, and feedback.
+9. Comeback Mode: missed-day detection, gentle restart session, and comeback completion tracking.
+10. Progress dashboard: workouts this week, active days, minimum workouts, comeback completions, total minutes, and energy feedback.
+
+## Repository Docs
+
+```txt
+Calis-app/
+|-- README.md
+|-- docs/
+|   |-- PRODUCT_SPEC.md
+|   |-- TECHNICAL_PLAN.md
+|   `-- ROADMAP_AND_DECISIONS.md
+```
+
+## Development Priority
+
+Focus on fast prototype, clear user flow, good tone, working Comeback Mode, and simple workout generation. Do not implement real AI requests, API key forms, AI services, prompt templates, or AI chat screens until specifically planned.
