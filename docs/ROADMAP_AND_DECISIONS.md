@@ -1,41 +1,44 @@
 # Roadmap and Decisions
 
-## Future AI Roadmap
+## Product Direction
 
-AI is future scope. Do not build AI in the first MVP.
+AI-assisted video form analysis is the MVP center of gravity. Calis App should first prove that users will record short clips, understand structured feedback, and improve their exercise quality through repeat attempts.
 
-AI should support the existing product philosophy:
+The previous habit, comeback, and low-pressure consistency concept remains important, but it becomes a supporting layer around the AI analysis loop rather than the primary MVP.
 
-> Help users continue, adapt, and come back.
+Core MVP promise:
 
-AI should not become the main product. The recommended strategy is rule-based MVP first, optional AI support layer later.
+> Record a short calisthenics clip and get clear, supportive feedback for your next attempt.
 
-Future AI features:
+## MVP Roadmap
 
-1. AI Comeback Coach: personalize comeback messages, suggest gentle restart plans, and reduce guilt after breaks.
-2. AI Workout Adapter: adapt the three daily workout options using energy, time, equipment, space, and missed days while selecting from approved exercises only.
-3. AI Exercise Explainer: explain exercises simply, suggest easier alternatives, explain quiet versions, and answer basic form questions without diagnosing pain or injury.
-4. AI Weekly Reflection: summarize progress supportively, highlight comebacks, and suggest a realistic next step.
-5. AI Message Generator: generate supportive messages, maintain tone of voice, and avoid repeated static messages.
+1. Web PWA foundation with responsive navigation and local account/profile flow.
+2. Supported exercise list for push-up, squat, plank, lunge, and hollow hold.
+3. Exercise setup guidance for camera angle, visibility, lighting, reps or hold length, and safety.
+4. Browser recording or upload flow for short clips.
+5. Backend media validation and transient video handling.
+6. Backend Vision API integration with app-managed credentials.
+7. Structured AI output for positive notes, form issues, severity, moments, corrections, and confidence.
+8. Safety validator for supported exercise scope, non-medical wording, sensitive-area caution, and fallback handling.
+9. Checklist feedback UI with retry and save-result actions.
+10. Form history showing saved feedback, repeated issues, and supportive progress.
+11. Comeback support as a lightweight prompt after missed practice days.
 
-Recommended API key strategy:
+## Later Roadmap
 
-- MVP: no AI
-- AI beta: app-managed key
-- developer mode: optional user-provided key
-- production: decide later based on cost and users
+Future AI and product features:
 
-Future AI implementation order:
-
-1. Add AI settings model.
-2. Add backend AI client.
-3. Add prompt templates.
-4. Add AI comeback message.
-5. Add message validation.
-6. Add AI workout adaptation.
-7. Add workout safety validation.
-8. Add weekly reflection.
-9. Add API key management if needed.
+1. Local pose-estimation pre-checks for visibility, camera angle, rep phases, and simple landmark quality.
+2. Before/after attempt comparison for the same exercise.
+3. Broader exercise library with validation per exercise.
+4. Optional score or readiness indicators, only if they do not create shame or false certainty.
+5. AI exercise explainer for supported exercises and common mistakes.
+6. AI comeback coach for gentle restart prompts after gaps.
+7. AI weekly reflection that summarizes practice and repeated improvements.
+8. Rule-based or AI-assisted workout generation from approved exercises.
+9. Optional video retention with explicit consent.
+10. Developer mode for user-provided API keys.
+11. Mobile app camera experience if the Web PWA validates demand.
 
 ## AI Safety and Architecture
 
@@ -43,71 +46,80 @@ AI must not:
 
 - diagnose medical problems
 - prescribe treatment
+- claim it can detect injuries
 - tell users to continue through pain
-- generate unsafe workouts
+- analyze unsupported exercises as if they are supported
+- generate unsafe exercise instructions
 - ignore sensitive areas
 - shame users
 - promote rapid transformation
 - use aggressive fitness language
 
-AI should choose from approved exercises, suggest easier alternatives, respect user constraints, keep comeback sessions easy, and use supportive language.
+AI should:
 
-Before showing AI-generated workout suggestions, validate that exercise IDs exist, exercises are approved for AI, equipment and space match, quiet mode is respected, sensitive areas are respected, duration is acceptable, and intensity is appropriate. If validation fails, use a rule-based fallback.
+- analyze only approved supported exercises
+- use visible evidence from the submitted clip
+- state uncertainty when video quality, angle, or visibility is poor
+- provide concrete next-attempt cues
+- include positive notes
+- suggest easier variations when appropriate
+- recommend stopping if pain appears
+- keep feedback supportive and non-judgmental
 
-Future AI architecture:
+Recommended MVP architecture:
 
 ```txt
-Frontend
+Frontend Web PWA
 -> Backend API
--> Rule-based workout engine
--> AI service wrapper
+-> Media validator
+-> Temporary media processor
+-> Vision API wrapper
+-> Structured result parser
 -> Safety validator
--> Exercise database
--> Workout response
+-> Analysis database
+-> Checklist feedback response
 ```
 
-AI should be called from the backend, not directly from the frontend, when using app-managed API keys.
-
-Possible future files:
-
-```txt
-docs/API_KEY_MANAGEMENT.md
-docs/PROMPT_DESIGN.md
-docs/AI_SAFETY_RULES.md
-docs/AI_WORKOUT_GENERATION.md
-```
-
-Possible future code structure:
-
-```txt
-src/ai/
-  aiClient.ts
-  promptTemplates.ts
-  workoutAdapter.ts
-  comebackCoach.ts
-  weeklyReflection.ts
-  safetyValidator.ts
-  schemas.ts
-```
+AI should be called from the backend, not directly from the frontend. App-managed API keys stay server-side.
 
 ## Decisions
 
-Decision 001: Build the MVP without AI.
+Decision 001: Build the MVP around AI-assisted form analysis.
 
-Why: The first goal is to validate the habit system with an exercise database, rule-based filtering, workout templates, Comeback Mode, Return Chain, and progress tracking. This keeps the first version simple, testable, and safer.
+Why: The product direction has changed. The first version should validate the most differentiated value: short-video analysis that helps users correct exercise mistakes.
 
-Decision 002: Keep AI future-compatible.
+Decision 002: Use a Web PWA for the first build.
 
-Why: Fields such as `ai_enabled`, `ai_allowed`, `generated_by`, `ai_assisted`, and `risk_level` make future AI integration easier without requiring AI now.
+Why: A Web PWA is the fastest path for this repo and supports browser recording, upload, responsive UI, and backend API integration without mobile app-store complexity.
 
-Decision 003: Treat Comeback Mode as a core MVP feature.
+Decision 003: Use after-recording analysis, not live feedback.
 
-Why: The product should be differentiated by helping users return, not only by giving workouts.
+Why: Post-recording analysis is simpler, safer, and easier to validate. Live feedback can be explored later if users trust and reuse the analysis flow.
 
-Decision 004: Use Return Chain instead of a strict streak.
+Decision 004: Limit MVP analysis to five supported exercises.
 
-Why: Traditional streaks can create guilt when broken. Return Chain better supports realistic consistency.
+Why: Push-up, squat, plank, lunge, and hollow hold are recognizable calisthenics movements with common form issues. A narrow list keeps prompts, validation, and feedback quality testable.
 
-Decision 005: Future AI should select or adapt from the approved exercise database.
+Decision 005: Use backend Vision API integration with app-managed credentials.
 
-Why: AI should not freely invent exercises. Approved exercises and validation keep AI suggestions safer and easier to test.
+Why: Backend integration protects API keys, centralizes safety validation, supports cost controls, and creates a cleaner user experience.
+
+Decision 006: Analyze videos transiently and discard originals by default.
+
+Why: Form videos are sensitive. The MVP should store analysis results and metadata, not raw source videos, unless a future feature asks for explicit retention consent.
+
+Decision 007: Use checklist plus tips instead of score-first feedback.
+
+Why: Checklist feedback is more actionable and less judgmental. A score can create false certainty and may conflict with the supportive tone.
+
+Decision 008: Keep comeback support as a secondary product layer.
+
+Why: The low-pressure habit philosophy still differentiates Calis, but it should support returning to practice rather than dominate the AI analysis MVP.
+
+Decision 009: Validate all AI output before showing it.
+
+Why: The app needs predictable safety boundaries. Results should be checked for schema shape, supported exercise scope, medical claims, unsafe advice, and overly certain language.
+
+Decision 010: Keep alternative AI strategies documented, not primary.
+
+Why: User-provided keys and local pose-estimation-first workflows may be useful later, but they add complexity or reduce coaching quality for the initial user-facing MVP.

@@ -2,144 +2,184 @@
 
 ## Product Summary
 
-Calis App helps people exercise at home by making small workouts count and making it easy to return after missed days.
+Calis App is a Web PWA that helps people improve calisthenics exercise quality at home by analyzing short exercise videos and returning clear, supportive form feedback.
+
+Core loop:
+
+```txt
+choose exercise -> record short video -> submit for AI analysis -> review checklist feedback -> retry or save progress
+```
 
 Core philosophy:
 
-> You do not need a perfect workout. You just need to come back.
+> Better form comes from small, repeatable corrections, not shame.
 
-The app is realistic, supportive, home-based, beginner-friendly, low-pressure, consistency-focused, and future-ready for optional AI support. It is not a medical app, bodybuilding app, shame-based streak tracker, calorie-obsession app, or generic AI chatbot.
+The app should feel practical, beginner-aware, privacy-conscious, and supportive. It is not a medical app, physical therapy app, bodybuilding app, shame-based scoring app, or generic AI chatbot.
 
 ## Target Users
 
-- Restarting users who often begin fitness routines, miss days, and need a simple way back.
-- Busy beginners who have limited time, low confidence, and want short workouts.
-- Apartment users who need quiet, low-impact, small-space options.
-- Low-energy users who need very easy movement without pressure.
-- Cautious movers who need sensitive-area support, easier alternatives, and safety notes.
+- Beginner-to-intermediate calisthenics users who train at home and want form feedback.
+- Self-guided users who do not have a coach watching their technique.
+- Users who want to improve core bodyweight exercises safely and gradually.
+- Restarting users who need low-pressure progress tracking and encouragement after gaps.
+- Cautious movers who need clear safety notes and reminders to stop when pain appears.
 
 ## MVP Scope
 
-Goal: validate whether a realistic, low-pressure home workout app can help users continue exercising and return after missed days.
+Goal: validate whether short-video AI analysis can help users recognize common form mistakes and improve exercise quality.
 
 The MVP should answer:
 
-> Will users come back more often if the app gives them small workouts, supportive messages, and a clear comeback path?
+> Will users record a short exercise clip, trust structured AI feedback, and use it to improve their next attempt?
 
 Must-have features:
 
 | Feature | Description |
 |---|---|
-| Onboarding | Collect fitness level, time, space, equipment, noise needs, and limitations |
-| User Profile | Store user constraints and preferences |
-| Exercise Library | Store safe, simple exercises with alternatives |
-| Workout Generator | Rule-based generator using user constraints |
-| Daily Workout Options | Show Minimum, Standard, and Extended options |
-| Workout Session | Guide the user through a selected workout |
-| Completion Tracking | Save completed workouts |
-| Comeback Mode | Detect missed days and suggest a gentle restart |
-| Return Chain | Track returns instead of strict streaks |
-| Progress Dashboard | Show progress without guilt |
-| Supportive Messages | Use calm, non-shaming copy |
+| Supported Exercise List | Show the initial calisthenics exercises that can be analyzed |
+| Exercise Setup Guidance | Explain camera angle, body position, visible range, and safety notes |
+| Short Video Recording or Upload | Let users capture or upload a short clip from the browser |
+| Video Validation | Check exercise selection, file type, duration, and size before submission |
+| AI Form Analysis | Send the clip to a backend AI analysis service and receive structured feedback |
+| Checklist Feedback | Show detected mistakes, severity, moments, and corrective tips |
+| Positive Notes | Highlight what looked good so feedback does not feel purely negative |
+| Retry Flow | Let users record another attempt after reviewing corrections |
+| Form History | Save analysis results and metadata without retaining the source video |
+| Supportive Progress | Track attempts and improvement without score-first or shame-based language |
+| Safety Messaging | Make clear the app gives general fitness guidance, not medical advice |
+
+Initial MVP exercises:
+
+- push-up
+- squat
+- plank
+- lunge
+- hollow hold
 
 Should-have features:
 
-- simple notification preferences
-- exercise browsing
-- basic workout history
-- energy before/after feedback
-- difficulty feedback
+- before/after attempt comparison by checklist item
+- difficulty feedback after analysis
+- simple reminders to practice an exercise again
+- lightweight comeback prompt after missed practice days
+- manual notes for what the user wants to focus on next time
 
 Out of scope for the first MVP:
 
-- AI API calls, AI chatbot, AI workout generation, and API key settings
+- live real-time form correction
+- medical diagnosis, injury treatment, or rehabilitation plans
+- full workout generation as the main product flow
 - nutrition planning
-- social media feed or public leaderboards
+- social feeds, public leaderboards, or competitive rankings
 - wearable integration
-- advanced analytics
-- paid coaching marketplace
-- body transformation tracking
+- long-form coaching chat
+- retained raw video library by default
+- advanced pose analytics dashboards
 
 ## App Flows
 
 Suggested MVP navigation:
 
-1. Today
-2. Progress
+1. Analyze
+2. History
 3. Exercises
 4. Profile
 
-First launch introduces the core promise, then starts onboarding.
+First launch introduces the core promise, privacy posture, and safety boundary, then starts a short profile setup.
 
 Onboarding asks:
 
-- What is your current fitness level?
-- What do you want help with?
-- On a difficult day, how much time can you realistically give?
-- How much space do you have?
-- Do you need quiet workouts?
-- What equipment do you have?
-- Any areas you want to be careful with?
+- What is your current calisthenics experience?
+- Which exercises do you want to improve first?
+- Do you have any areas you want to be careful with?
+- Are you comfortable recording short clips for analysis?
+- Do you want reminders or comeback support after missed practice days?
 
-Today screen:
+Analyze flow:
 
-1. User opens Today.
-2. App checks missed days.
-3. If needed, show Comeback Mode.
-4. Otherwise, ask: "What kind of day is it?"
-5. Show Minimum, Standard, and Extended workout options.
-6. User starts one workout.
+1. User selects a supported exercise.
+2. App shows setup, camera, lighting, and safety guidance.
+3. User records or uploads a short clip.
+4. App validates duration, size, and format.
+5. User submits the clip for analysis.
+6. Backend analyzes the video and discards the source video after processing.
+7. App shows structured feedback and suggested corrections.
+8. User can retry, save the result, or view exercise guidance.
 
-Workout session:
+Feedback screen:
 
-1. Show workout overview.
-2. Show each exercise with instructions, timer or reps.
-3. Allow pause, easier version, and skip.
-4. Finish session and record completion.
+1. Show a short overall summary.
+2. Show positive notes first or alongside corrections.
+3. Show checklist items for detected issues.
+4. For each issue, show severity, moment or timestamp when available, explanation, and correction.
+5. Clearly mark safety-related feedback.
+6. Offer one focused next attempt cue instead of overwhelming the user.
 
-Completion:
+History flow:
 
-1. Save workout date, duration, type, comeback flag, minimum flag, alternatives used, and feedback.
-2. Ask difficulty and energy-after feedback.
-3. Update progress.
-4. Show a supportive message.
+1. User opens History.
+2. App shows recent analysis sessions by exercise and date.
+3. User can review saved AI feedback, common repeated issues, and positive notes.
+4. App shows progress as practice attempts and improvements, not strict scores.
 
-## Workout Concepts
+Comeback support:
 
-Daily options:
+1. If the user has not practiced recently, show a gentle return prompt.
+2. Recommend one supported exercise and a short recording attempt.
+3. Do not ask the user to make up missed days.
 
-| Option | Duration | Purpose |
-|---|---:|---|
-| Minimum | 3-5 min | Keep the habit alive |
-| Standard | 8-12 min | Balanced daily movement |
-| Extended | 20-30 min | Stronger session for high-energy days |
+## Feedback Concepts
 
-Comeback Mode activates after missed days and recommends a gentle restart:
+Checklist feedback should be structured and specific:
 
-| Missed Days | Comeback Suggestion |
-|---:|---|
-| 3 days | 5-minute light full-body |
-| 7 days | 3-5 minute mobility and easy strength |
-| 14+ days | gentle restart session |
+| Field | Purpose |
+|---|---|
+| Issue label | Name the form concern clearly |
+| Severity | Help prioritize what matters most |
+| Moment | Point to a timestamp or approximate part of the clip |
+| Explanation | Explain what the AI observed in simple language |
+| Correction | Give a concrete cue for the next attempt |
+| Safety flag | Highlight feedback related to possible strain or risk |
 
-Example comeback message:
+Example issue:
 
-> Welcome back. No need to make up for missed days. Let's restart gently.
+```txt
+Label: Hips dropping during plank
+Severity: medium
+Moment: around 8 seconds
+Explanation: Your hips appear to lower as the hold continues.
+Correction: Brace your core and shorten the hold before your position changes.
+Safety related: true
+```
 
-Return Chain rewards returning, not perfection. It tracks active days, return days, comeback completions, minimum workouts, and consistency over time.
+The MVP should avoid score-first UX. A score can be explored later, but the first version should prioritize understandable corrections and user confidence.
+
+## Privacy
+
+Default MVP privacy posture:
+
+- videos are used only for the requested analysis
+- source videos are discarded after processing
+- saved history stores metadata and feedback, not raw videos
+- the app should make this behavior clear before recording or upload
+- any future video retention must require explicit user consent
+
+Stored history can include exercise ID, date, duration, analysis status, feedback, repeated issues, user notes, and whether the user saved the attempt.
 
 ## Success Metrics
 
 Track:
 
+- percentage of users who complete first video analysis
+- percentage of users who record a retry after feedback
+- analysis completion rate and failure rate
+- average number of attempts per supported exercise
+- repeated issue reduction across saved attempts
+- user trust rating for AI feedback
 - Day 1, Day 7, Day 14, and Day 30 retention
-- completed minimum workouts
-- Comeback Mode completions
-- percentage of users who return after missed days
-- average workouts per user per week
-- user feedback on tone and difficulty
+- comeback prompt completions after missed practice days
 
-The MVP is done when a user can create a profile, get suitable workout options, complete a workout, use an easier alternative, miss several days, return through Comeback Mode, and see progress without guilt.
+The MVP is done when a user can choose a supported exercise, record or upload a short video, receive structured AI feedback, retry after corrections, save analysis history without retaining the source video, and return later through a supportive progress flow.
 
 ## Safety and Tone
 
@@ -147,38 +187,44 @@ Calis App provides general fitness guidance. It should not diagnose, treat, pres
 
 Required safety message:
 
-> This app provides general fitness guidance. Stop if you feel pain, dizziness, or unusual discomfort. If you have a medical condition, injury, or concern, consult a qualified healthcare professional before starting exercise.
+> This app provides general fitness guidance and AI-assisted form feedback. Stop if you feel pain, dizziness, or unusual discomfort. If you have a medical condition, injury, or concern, consult a qualified healthcare professional before starting exercise.
 
-Exercise safety rules:
+AI feedback must not:
 
-- prefer beginner-safe movements
-- provide easier alternatives
-- avoid high-impact exercises for comeback sessions
-- respect sensitive areas
-- suggest stopping if pain occurs
-- include safety notes where needed
+- diagnose medical problems
+- prescribe treatment
+- claim certainty about injury risk
+- tell users to continue through pain
+- shame users for poor form
+- promote rapid transformation
+- use aggressive fitness language
+- analyze unsupported exercises as if they are supported
 
-Comeback sessions should be easier than normal sessions. For longer breaks, use mobility, low-impact strength, gentle full-body movement, and short duration. Avoid high-intensity intervals, jumping, advanced movements, and long sessions.
+AI feedback should:
 
-Tone should be friendly, realistic, non-judgmental, simple, encouraging, and human.
+- focus on common form observations
+- use plain language
+- give one or more concrete corrections
+- suggest easier versions when appropriate
+- respect sensitive areas from the user profile
+- recommend stopping if pain appears
+- keep confidence limits visible when feedback is uncertain
 
 Avoid phrases like:
 
 - "No excuses"
 - "You failed"
-- "You lost your streak"
+- "Bad form"
 - "Go hard or go home"
-- "Burn fat fast"
 - "Crush your body"
-- "Make up for missed days"
-- "You are behind"
+- "Ignore the discomfort"
+- "Perfect score"
 
 Prefer phrases like:
 
-- "Small progress counts."
-- "A short workout is still a workout."
+- "Try this cue on the next attempt."
+- "Small corrections add up."
+- "Shorter, cleaner reps are still progress."
+- "This is worth practicing gently."
+- "Stop if this causes pain."
 - "You came back. That matters."
-- "Today can be simple."
-- "Let's restart gently."
-- "No need to make up for missed days."
-- "Choose the easier version if needed."

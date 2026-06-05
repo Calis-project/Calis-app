@@ -1,218 +1,268 @@
 # Technical Plan
 
-## Data Model
+## Architecture Summary
 
-The MVP should use a simple rule-based data model. It can include small AI-ready fields, but the app must work without AI.
+The MVP should be a Web PWA with a backend AI analysis service. The browser handles exercise selection, recording or upload, and feedback display. The backend owns media validation, AI provider calls, result normalization, safety validation, persistence, and API key protection.
+
+Default MVP flow:
+
+```txt
+Web PWA
+-> record/upload short exercise video
+-> backend media validation
+-> frame extraction or provider-supported video input
+-> vision model analysis
+-> structured result normalization
+-> safety and schema validation
+-> discard source video
+-> store analysis metadata and feedback
+-> return checklist feedback to user
+```
+
+The MVP assumes app-managed backend Vision API credentials. API keys must not be stored in or called from the frontend.
+
+## Data Model
 
 Core entities:
 
 | Entity | Purpose | MVP |
 |---|---|---|
-| UserProfile | Stores user preferences and constraints | Yes |
-| Exercise | Stores exercises and alternatives | Yes |
-| WorkoutTemplate | Stores reusable workout structures | Yes |
-| WorkoutSession | Stores selected/generated workout | Yes |
-| WorkoutCompletion | Stores completed workouts | Yes |
-| FeedbackEntry | Stores post-workout feedback | Yes |
-| AISettings | Future optional AI settings | No |
-| AIRequestLog | Future AI request log | No |
+| UserProfile | Stores experience, focus exercises, sensitive areas, and privacy preferences | Yes |
+| SupportedExercise | Defines exercises that AI analysis can evaluate | Yes |
+| FormAnalysisSession | Tracks one submitted video analysis attempt | Yes |
+| FormAnalysisResult | Stores normalized AI feedback for a session | Yes |
+| FormIssue | Stores one detected form issue | Yes |
+| PracticeHistory | Aggregates saved attempts and repeated issues | Yes |
+| AIRequestLog | Stores non-video operational metadata for debugging and cost tracking | Optional |
+| WorkoutSession | Future workout flow | No |
+| WorkoutCompletion | Future workout flow | No |
 
 UserProfile:
 
 ```json
 {
   "id": "user_001",
-  "fitness_level": "beginner",
-  "main_goal": "build_habit",
-  "minimum_time_minutes": 3,
-  "available_space": "yoga_mat",
-  "quiet_workouts_required": true,
-  "equipment": ["yoga_mat"],
-  "sensitive_areas": ["knees"],
-  "ai_enabled": false,
+  "experience_level": "beginner",
+  "focus_exercises": ["push_up", "squat", "plank"],
+  "sensitive_areas": ["wrists"],
+  "comeback_support_enabled": true,
+  "video_retention_consent": false,
   "created_at": "2026-06-02T10:00:00Z",
   "updated_at": "2026-06-02T10:00:00Z"
 }
 ```
 
-Exercise:
+SupportedExercise:
 
 ```json
 {
-  "id": "ex_wall_pushup",
-  "name": "Wall Push-up",
-  "description": "A beginner-friendly push-up variation using a wall.",
-  "instructions": [
-    "Stand facing a wall.",
-    "Place your hands on the wall at chest height.",
-    "Bend your elbows slowly.",
-    "Push back gently."
+  "id": "push_up",
+  "name": "Push-up",
+  "category": "upper_body",
+  "difficulty": "beginner_to_intermediate",
+  "setup_instructions": [
+    "Place the camera to your side at about hip height.",
+    "Keep your full body visible from head to feet.",
+    "Record 3 to 6 controlled reps."
   ],
-  "difficulty": "beginner",
-  "target_areas": ["chest", "arms", "core"],
-  "movement_type": "strength",
-  "equipment_required": [],
-  "space_required": "yoga_mat",
-  "noise_level": "quiet",
-  "impact_level": "low",
-  "default_duration_seconds": 45,
-  "default_reps": null,
-  "easier_alternative_id": null,
-  "harder_alternative_id": "ex_incline_pushup",
-  "avoid_if_sensitive_areas": ["wrists", "shoulders"],
+  "recording_guidance": {
+    "recommended_duration_seconds": 15,
+    "max_duration_seconds": 30,
+    "preferred_angle": "side",
+    "full_body_required": true
+  },
+  "common_mistakes": [
+    "hips_sagging",
+    "elbows_flared",
+    "partial_range_of_motion",
+    "head_dropping"
+  ],
   "safety_notes": [
-    "Stop if you feel wrist or shoulder pain."
+    "Stop if you feel wrist, shoulder, or lower-back pain."
   ],
-  "tags": ["upper_body", "beginner", "quiet", "no_equipment"],
-  "ai_allowed": true,
-  "risk_level": "low"
+  "ai_analysis_allowed": true
 }
 ```
 
-WorkoutTemplate:
+FormAnalysisSession:
 
 ```json
 {
-  "id": "wt_minimum_full_body",
-  "name": "Minimum Full Body",
-  "workout_type": "minimum",
-  "target_duration_minutes": 3,
-  "difficulty": "very_easy",
-  "required_blocks": ["warmup", "strength", "cooldown"],
-  "quiet_required": true,
-  "low_impact_required": true,
-  "description": "A short workout for difficult days."
-}
-```
-
-WorkoutSession:
-
-```json
-{
-  "id": "ws_001",
+  "id": "fas_001",
   "user_id": "user_001",
-  "template_id": "wt_minimum_full_body",
-  "title": "3-Minute Gentle Session",
-  "workout_type": "minimum",
-  "estimated_duration_minutes": 3,
-  "generated_by": "rule_based",
-  "is_comeback_session": false,
-  "exercises": [
+  "exercise_id": "push_up",
+  "status": "completed",
+  "video_duration_seconds": 18,
+  "source_video_retained": false,
+  "created_at": "2026-06-02T10:00:00Z",
+  "completed_at": "2026-06-02T10:00:25Z"
+}
+```
+
+FormAnalysisResult:
+
+```json
+{
+  "session_id": "fas_001",
+  "overall_summary": "Your reps are controlled, but your hip position changes near the bottom of several reps.",
+  "issues": [
     {
-      "exercise_id": "ex_wall_pushup",
-      "order": 1,
-      "duration_seconds": 45,
-      "reps": null,
-      "rest_after_seconds": 15
+      "label": "Hips sagging",
+      "severity": "medium",
+      "timestamp_seconds": 9,
+      "explanation": "Your hips appear to drop as you lower into the rep.",
+      "correction": "Brace your core before each rep and stop the set when your body line changes.",
+      "safety_related": true
     }
   ],
-  "created_at": "2026-06-02T10:00:00Z"
-}
-```
-
-WorkoutCompletion:
-
-```json
-{
-  "id": "wc_001",
-  "user_id": "user_001",
-  "workout_session_id": "ws_001",
-  "completed_at": "2026-06-02T10:15:00Z",
-  "completed_duration_minutes": 3,
-  "workout_type": "minimum",
-  "is_comeback_session": false,
-  "was_minimum_workout": true,
-  "exercises_completed": 4,
-  "exercises_skipped": 0,
-  "alternatives_used": 1,
-  "ai_assisted": false
-}
-```
-
-FeedbackEntry:
-
-```json
-{
-  "id": "fb_001",
-  "user_id": "user_001",
-  "workout_completion_id": "wc_001",
-  "perceived_difficulty": "okay",
-  "energy_before": "low",
-  "energy_after": "better",
-  "mood_after": "calm",
-  "notes": null
+  "positive_notes": [
+    "Your tempo is steady.",
+    "Your hands stay planted consistently."
+  ],
+  "corrective_tips": [
+    "Try an incline push-up for cleaner body alignment.",
+    "Record from the side again so your body line is easy to review."
+  ],
+  "confidence": "medium",
+  "model_metadata": {
+    "provider": "backend_vision_api",
+    "model": "configured_on_server",
+    "analysis_version": "mvp_001"
+  }
 }
 ```
 
 ## Enums
 
 ```txt
-fitness_level: beginner, some_experience, intermediate
-workout_type: minimum, standard, extended, comeback, mobility, recovery
-generated_by: rule_based, manual, ai_assisted
-difficulty: very_easy, beginner, easy, moderate, challenging
-movement_type: strength, mobility, cardio_low_impact, cardio_high_impact, balance, stretching, warmup, cooldown
-space_required: yoga_mat, small_room, large_room
-noise_level: quiet, moderate, noisy
-impact_level: low, medium, high
-risk_level: low, medium, high
+experience_level: beginner, some_experience, intermediate
+supported_exercise_id: push_up, squat, plank, lunge, hollow_hold
+analysis_status: created, uploading, processing, completed, failed, rejected
+difficulty: beginner, beginner_to_intermediate, intermediate
+severity: low, medium, high
+confidence: low, medium, high
+video_source: recorded, uploaded
+category: upper_body, lower_body, core, full_body
 ```
 
-## Rule-Based Workout Generation
+## API Interfaces
 
-Basic logic:
+Conceptual MVP endpoints:
 
 ```txt
-get user profile
-filter exercises by equipment
-filter exercises by space
-filter exercises by noise level
-filter exercises by sensitive areas
-choose template based on user state
-select exercises matching template blocks
-include easier alternatives
-return workout session
+GET /api/exercises/supported
+POST /api/analysis/video
+GET /api/analysis/{session_id}
+GET /api/progress/form-history
 ```
 
-For MVP implementation, use:
+`GET /api/exercises/supported`
 
-```json
-{
-  "generated_by": "rule_based",
-  "ai_enabled": false,
-  "ai_assisted": false
-}
-```
+- Returns only exercises with `ai_analysis_allowed = true`.
+- Includes setup instructions, recording guidance, common mistakes, and safety notes.
 
-AI-ready fields that do not require AI now:
+`POST /api/analysis/video`
 
-- `ai_enabled`
-- `ai_allowed`
-- `risk_level`
-- `generated_by`
-- `ai_assisted`
+- Accepts `exercise_id`, `video_source`, and one short video file.
+- Validates authentication or local user identity, exercise support, file type, file size, duration, and required metadata.
+- Rejects unsupported exercises instead of asking AI to infer arbitrary movements.
+- Calls the backend AI analysis pipeline.
+- Discards the source video after processing.
+- Stores `FormAnalysisSession` and `FormAnalysisResult`.
 
-Future AI should only select from approved exercises where:
+`GET /api/analysis/{session_id}`
 
-```txt
-ai_allowed = true
-risk_level != high
-```
+- Returns session status and result when available.
+- Never returns raw source video in the MVP.
 
-AI-generated workouts should later pass a rule-based safety validator before being shown.
+`GET /api/progress/form-history`
+
+- Returns saved analysis metadata, repeated issues, positive notes, and user-visible progress summaries.
+
+## AI Analysis Pipeline
+
+Backend steps:
+
+1. Validate the selected exercise against `SupportedExercise`.
+2. Validate media type, duration, size, and basic readability.
+3. Extract representative frames or prepare provider-supported video input.
+4. Send the exercise definition, user sensitive areas, safety constraints, and media input to the Vision API.
+5. Require structured output matching `FormAnalysisResult`.
+6. Validate issue labels, severity, timestamps, safety flags, and unsupported claims.
+7. Remove or soften medical, diagnostic, or overconfident language.
+8. Persist only session metadata and normalized feedback.
+9. Delete transient source video and temporary frames.
+10. Return checklist feedback to the frontend.
+
+The prompt should instruct the model to:
+
+- analyze only the selected supported exercise
+- focus on visible form observations
+- mention uncertainty when visibility is poor
+- avoid diagnosis or medical advice
+- provide practical corrections
+- include positive notes
+- avoid score-first feedback
+
+If analysis fails, the backend should return a supportive failure state and suggest recording again with better angle, lighting, or full-body visibility.
+
+## Alternative AI Strategies
+
+Default: backend Vision API with app-managed key.
+
+- Best user experience for MVP.
+- Keeps credentials private.
+- Allows consistent validation, logging, and safety checks.
+- Requires backend infrastructure and cost controls.
+
+Alternative: user-provided API key mode.
+
+- Useful for developer builds, internal testing, or power users.
+- Reduces platform cost but creates poor normal-user onboarding.
+- Should be separated from production UX and clearly marked as developer mode.
+- Still should route through backend validation when possible.
+
+Alternative: local pose-estimation-first mode.
+
+- Useful for privacy-sensitive or lower-cost experiments.
+- Can detect simple angles, body landmarks, rep phases, and visibility quality.
+- Produces less natural coaching feedback unless combined with rule-based cues or optional AI summaries.
+- Could become a pre-check before Vision API calls to reduce failed submissions.
+
+## Privacy, Security, and Cost Controls
+
+MVP defaults:
+
+- source videos are transient
+- source videos are discarded after analysis
+- temporary frames are discarded after analysis
+- stored history contains only metadata and feedback
+- frontend never receives provider credentials
+- backend logs must not include raw media
+
+Operational controls:
+
+- max duration per clip: 30 seconds
+- supported formats should be browser-friendly, such as `mp4`, `mov`, or `webm`
+- enforce upload size limits
+- rate-limit analysis requests per user
+- record provider latency, failure reason, and estimated cost without storing video
+- provide a clear retry path when media quality is too poor
 
 ## MVP Build Order
 
-1. Project setup: frontend framework, backend if needed, database or local storage, routing, and basic layout.
-2. Data models: `UserProfile`, `Exercise`, `WorkoutTemplate`, `WorkoutSession`, `WorkoutCompletion`, and `FeedbackEntry`.
-3. Exercise seed data: wall push-up, sit-to-stand, step jack, knee plank, dead bug, glute bridge, shoulder rolls, marching in place, calf raises, and gentle mobility exercises.
-4. Onboarding: fitness level, goal, minimum time, space, noise, equipment, and sensitive areas.
-5. Rule-based workout generator: `profile + daily_state + missed_days -> filter exercises -> select template -> create workout session`.
-6. Today screen: greeting, day-state prompt, workout options, and comeback message when needed.
-7. Workout session: overview, exercise screen, timer/reps, easier alternative, pause/skip, and completion button.
-8. Completion tracking: workout metadata, comeback flag, minimum flag, alternatives used, and feedback.
-9. Comeback Mode: missed-day detection, gentle restart session, and comeback completion tracking.
-10. Progress dashboard: workouts this week, active days, minimum workouts, comeback completions, total minutes, and energy feedback.
+1. Project setup: Web PWA, backend API, routing, storage, and responsive app shell.
+2. Supported exercise seed data: push-up, squat, plank, lunge, and hollow hold.
+3. Profile setup: experience level, focus exercises, sensitive areas, and privacy acknowledgement.
+4. Exercise selection and setup guidance.
+5. Browser recording or upload flow with duration and format validation.
+6. Backend analysis endpoint with transient media handling.
+7. Vision API wrapper and structured output schema.
+8. Result validator for safety, schema, supported exercises, and non-medical language.
+9. Checklist feedback screen with positive notes, issues, severity, moments, and tips.
+10. Retry and save-result flow.
+11. Form history with repeated issues and supportive progress summaries.
+12. Lightweight comeback support that recommends a simple practice attempt after gaps.
 
 ## Repository Docs
 
@@ -227,4 +277,4 @@ Calis-app/
 
 ## Development Priority
 
-Focus on fast prototype, clear user flow, good tone, working Comeback Mode, and simple workout generation. Do not implement real AI requests, API key forms, AI services, prompt templates, or AI chat screens until specifically planned.
+Focus on the shortest reliable AI analysis loop: supported exercise selection, clean video capture, backend Vision API analysis, structured checklist feedback, transient video handling, and supportive retry. Do not build live feedback, broad workout generation, retained video libraries, social features, or medical guidance in the first MVP.
