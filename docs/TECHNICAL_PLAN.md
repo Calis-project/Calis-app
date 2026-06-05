@@ -2,16 +2,18 @@
 
 ## Architecture Summary
 
-The MVP should be a Web PWA with a backend AI analysis service. The browser handles exercise selection, recording or upload, and feedback display. The backend owns media validation, AI provider calls, result normalization, safety validation, persistence, and API key protection.
+The MVP should be a Next.js App Router web app with PWA capabilities. Next.js provides the app structure, routing, API route handlers, and server-side AI calls. PWA capabilities add installability and mobile app-like behavior without creating a second app or duplicate backend.
+
+The browser handles exercise selection, recording or upload, and feedback display through client components. Next.js route handlers own media validation, AI provider calls, result normalization, safety validation, persistence, and API key protection.
 
 Default MVP flow:
 
 ```txt
-Web PWA
--> record/upload short exercise video
--> backend media validation
+Next.js App Router
+-> client recording/upload component
+-> route handler media validation
 -> frame extraction or provider-supported video input
--> vision model analysis
+-> server-side vision model analysis
 -> structured result normalization
 -> safety and schema validation
 -> discard source video
@@ -19,7 +21,34 @@ Web PWA
 -> return checklist feedback to user
 ```
 
-The MVP assumes app-managed backend Vision API credentials. API keys must not be stored in or called from the frontend.
+The MVP assumes app-managed backend Vision API credentials. API keys must use server-only environment variables and must never be exposed with `NEXT_PUBLIC_` or called from the frontend.
+
+PWA is not a separate implementation track. It is a small set of capabilities added to the Next.js app, starting with a manifest, icons, installability, mobile-friendly shell, and minimal service worker behavior when needed.
+
+## Next.js App Structure
+
+Suggested routes:
+
+```txt
+app/
+|-- analyze/
+|-- exercises/
+|-- history/
+|-- profile/
+|-- api/
+|   |-- exercises/
+|   |   `-- supported/route.ts
+|   |-- analysis/
+|   |   |-- video/route.ts
+|   |   `-- [session_id]/route.ts
+|   `-- progress/
+|       `-- form-history/route.ts
+|-- manifest.ts
+public/
+|-- icons/
+```
+
+Client components should handle camera access, recording controls, upload selection, local preview, and client-side media checks. Server route handlers should handle validation, transient media processing, Vision API calls, storage, and result delivery.
 
 ## Data Model
 
@@ -156,6 +185,15 @@ GET /api/analysis/{session_id}
 GET /api/progress/form-history
 ```
 
+Next.js route handler mapping:
+
+| Endpoint | Route handler |
+|---|---|
+| `GET /api/exercises/supported` | `app/api/exercises/supported/route.ts` |
+| `POST /api/analysis/video` | `app/api/analysis/video/route.ts` |
+| `GET /api/analysis/[session_id]` | `app/api/analysis/[session_id]/route.ts` |
+| `GET /api/progress/form-history` | `app/api/progress/form-history/route.ts` |
+
 `GET /api/exercises/supported`
 
 - Returns only exercises with `ai_analysis_allowed = true`.
@@ -238,7 +276,8 @@ MVP defaults:
 - temporary frames are discarded after analysis
 - stored history contains only metadata and feedback
 - frontend never receives provider credentials
-- backend logs must not include raw media
+- Vision API credentials are stored in server-only environment variables, never `NEXT_PUBLIC_`
+- route handler logs must not include raw media
 
 Operational controls:
 
@@ -251,18 +290,19 @@ Operational controls:
 
 ## MVP Build Order
 
-1. Project setup: Web PWA, backend API, routing, storage, and responsive app shell.
+1. Project setup: Next.js App Router, TypeScript, routing, route handlers, storage, and responsive app shell.
 2. Supported exercise seed data: push-up, squat, plank, lunge, and hollow hold.
 3. Profile setup: experience level, focus exercises, sensitive areas, and privacy acknowledgement.
-4. Exercise selection and setup guidance.
-5. Browser recording or upload flow with duration and format validation.
-6. Backend analysis endpoint with transient media handling.
-7. Vision API wrapper and structured output schema.
-8. Result validator for safety, schema, supported exercises, and non-medical language.
-9. Checklist feedback screen with positive notes, issues, severity, moments, and tips.
-10. Retry and save-result flow.
-11. Form history with repeated issues and supportive progress summaries.
-12. Lightweight comeback support that recommends a simple practice attempt after gaps.
+4. Basic PWA setup: `app/manifest.ts`, icons, installability, and mobile-friendly shell.
+5. Exercise selection and setup guidance.
+6. Client recording or upload flow with duration and format validation.
+7. Route handler analysis endpoint with transient media handling.
+8. Vision API wrapper and structured output schema.
+9. Result validator for safety, schema, supported exercises, and non-medical language.
+10. Checklist feedback screen with positive notes, issues, severity, moments, and tips.
+11. Retry and save-result flow.
+12. Form history with repeated issues and supportive progress summaries.
+13. Lightweight comeback support that recommends a simple practice attempt after gaps.
 
 ## Repository Docs
 
@@ -277,4 +317,4 @@ Calis-app/
 
 ## Development Priority
 
-Focus on the shortest reliable AI analysis loop: supported exercise selection, clean video capture, backend Vision API analysis, structured checklist feedback, transient video handling, and supportive retry. Do not build live feedback, broad workout generation, retained video libraries, social features, or medical guidance in the first MVP.
+Focus on the shortest reliable AI analysis loop in one Next.js codebase: supported exercise selection, clean client-side video capture, route-handler Vision API analysis, structured checklist feedback, transient video handling, and supportive retry. Do not build live feedback, broad workout generation, retained video libraries, social features, or medical guidance in the first MVP.

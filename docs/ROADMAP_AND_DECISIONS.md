@@ -12,7 +12,7 @@ Core MVP promise:
 
 ## MVP Roadmap
 
-1. Web PWA foundation with responsive navigation and local account/profile flow.
+1. Next.js App Router foundation with responsive navigation and local account/profile flow.
 2. Supported exercise list for push-up, squat, plank, lunge, and hollow hold.
 3. Exercise setup guidance for camera angle, visibility, lighting, reps or hold length, and safety.
 4. Browser recording or upload flow for short clips.
@@ -38,7 +38,8 @@ Future AI and product features:
 8. Rule-based or AI-assisted workout generation from approved exercises.
 9. Optional video retention with explicit consent.
 10. Developer mode for user-provided API keys.
-11. Mobile app camera experience if the Web PWA validates demand.
+11. Mobile app camera experience if the Next.js web app validates demand.
+12. Richer PWA behavior such as push reminders and offline practice packs.
 
 ## AI Safety and Architecture
 
@@ -69,8 +70,9 @@ AI should:
 Recommended MVP architecture:
 
 ```txt
-Frontend Web PWA
--> Backend API
+Next.js App Router
+-> Client recording/upload components
+-> Route handlers
 -> Media validator
 -> Temporary media processor
 -> Vision API wrapper
@@ -80,7 +82,7 @@ Frontend Web PWA
 -> Checklist feedback response
 ```
 
-AI should be called from the backend, not directly from the frontend. App-managed API keys stay server-side.
+AI should be called from Next.js route handlers or server-side modules, not directly from the frontend. App-managed API keys stay server-side and must not use `NEXT_PUBLIC_`.
 
 ## Decisions
 
@@ -88,9 +90,13 @@ Decision 001: Build the MVP around AI-assisted form analysis.
 
 Why: The product direction has changed. The first version should validate the most differentiated value: short-video analysis that helps users correct exercise mistakes.
 
-Decision 002: Use a Web PWA for the first build.
+Decision 002: Use Next.js App Router with PWA capabilities for the first build.
 
-Why: A Web PWA is the fastest path for this repo and supports browser recording, upload, responsive UI, and backend API integration without mobile app-store complexity.
+Why: Next.js provides the app structure, routing, route handlers, and server-side AI integration. PWA capabilities add installability and mobile app-like behavior without creating a second app or duplicate backend.
+
+Decision 002A: Treat PWA as an enhancement, not a separate implementation track.
+
+Why: There should be one Next.js codebase. PWA features such as `manifest.ts`, icons, installability, and future service worker behavior are added to that app.
 
 Decision 003: Use after-recording analysis, not live feedback.
 
@@ -123,3 +129,7 @@ Why: The app needs predictable safety boundaries. Results should be checked for 
 Decision 010: Keep alternative AI strategies documented, not primary.
 
 Why: User-provided keys and local pose-estimation-first workflows may be useful later, but they add complexity or reduce coaching quality for the initial user-facing MVP.
+
+Decision 011: Defer native mobile until the AI video-analysis loop is validated.
+
+Why: Native mobile may improve camera ergonomics later, but the first goal is to prove that users record clips, trust the feedback, and retry based on suggestions.

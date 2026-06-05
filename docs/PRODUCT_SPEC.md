@@ -2,7 +2,7 @@
 
 ## Product Summary
 
-Calis App is a Web PWA that helps people improve calisthenics exercise quality at home by analyzing short exercise videos and returning clear, supportive form feedback.
+Calis App is a Next.js web app with PWA capabilities that helps people improve calisthenics exercise quality at home by analyzing short exercise videos and returning clear, supportive form feedback.
 
 Core loop:
 
@@ -15,6 +15,8 @@ Core philosophy:
 > Better form comes from small, repeatable corrections, not shame.
 
 The app should feel practical, beginner-aware, privacy-conscious, and supportive. It is not a medical app, physical therapy app, bodybuilding app, shame-based scoring app, or generic AI chatbot.
+
+PWA capabilities support the mobile experience through installability, quick return to practice, app-like navigation, and future reminders. They are not a separate product or codebase.
 
 ## Target Users
 
@@ -60,6 +62,7 @@ Should-have features:
 
 - before/after attempt comparison by checklist item
 - difficulty feedback after analysis
+- installable mobile web experience
 - simple reminders to practice an exercise again
 - lightweight comeback prompt after missed practice days
 - manual notes for what the user wants to focus on next time
