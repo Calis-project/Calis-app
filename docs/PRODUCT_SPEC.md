@@ -1,5 +1,16 @@
 # Product Spec
 
+## Table of Contents
+
+- [Product Summary](#product-summary)
+- [Target Users](#target-users)
+- [MVP Scope](#mvp-scope)
+- [App Flows](#app-flows)
+- [Feedback Concepts](#feedback-concepts)
+- [Privacy](#privacy)
+- [Success Metrics](#success-metrics)
+- [Safety and Tone](#safety-and-tone)
+
 ## Product Summary
 
 Calis App is a Next.js web app with PWA capabilities that helps people improve calisthenics exercise quality at home by analyzing short exercise videos and returning clear, supportive form feedback.
@@ -42,7 +53,8 @@ Must-have features:
 | Exercise Setup Guidance | Explain camera angle, body position, visible range, and safety notes |
 | Short Video Recording or Upload | Let users capture or upload a short clip from the browser |
 | Video Validation | Check exercise selection, file type, duration, and size before submission |
-| AI Form Analysis | Send the clip to a backend AI analysis service and receive structured feedback |
+| Analysis Engine | Use observations from the backend Vision provider to detect reps, derive joint angles, evaluate exercise-specific form rules, score confidence, and prioritize feedback |
+| LLM Coaching Layer | Explain the analysis engine's structured output in clear, supportive language without interpreting raw video observations directly |
 | Checklist Feedback | Show detected mistakes, severity, moments, and corrective tips |
 | Positive Notes | Highlight what looked good so feedback does not feel purely negative |
 | Retry Flow | Let users record another attempt after reviewing corrections |
@@ -157,6 +169,8 @@ Safety related: true
 
 The MVP should avoid score-first UX. A score can be explored later, but the first version should prioritize understandable corrections and user confidence.
 
+AI feedback quality degrades when the camera angle is poor, lighting is low, the body is occluded, loose clothing hides key joint positions, or only part of the body is visible. Exercise setup guidance is the primary MVP mitigation, and low-quality clips should produce lower confidence or a request to record again rather than overconfident feedback.
+
 ## Privacy
 
 Default MVP privacy posture:
@@ -164,8 +178,17 @@ Default MVP privacy posture:
 - videos are used only for the requested analysis
 - source videos are discarded after processing
 - saved history stores metadata and feedback, not raw videos
-- the app should make this behavior clear before recording or upload
+- the app clearly discloses before recording or upload what is processed, what is saved, and what is discarded
+- explicit opt-in consent is required before the user's first analysis
 - any future video retention must require explicit user consent
+
+Under the GDPR, exercise videos are personal data when they identify or can identify a person. Movement-derived fitness information may also constitute data concerning health, and therefore special-category personal data, depending on what the system infers and how the data is used. Biometric data falls within the GDPR special categories when it is processed to uniquely identify a person; the MVP must not use exercise footage for biometric identification.
+
+The transient-video and metadata-only defaults support GDPR purpose limitation, data minimisation, and storage limitation. Consent and disclosure must be implemented as part of the product flow, not inferred from a user's decision to upload a clip.
+
+Required visible disclaimer:
+
+> This app is not medical or physiotherapy advice.
 
 Stored history can include exercise ID, date, duration, analysis status, feedback, repeated issues, user notes, and whether the user saved the attempt.
 

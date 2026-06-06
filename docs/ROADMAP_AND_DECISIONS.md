@@ -1,5 +1,13 @@
 # Roadmap and Decisions
 
+## Table of Contents
+
+- [Product Direction](#product-direction)
+- [MVP Roadmap](#mvp-roadmap)
+- [Later Roadmap](#later-roadmap)
+- [AI Safety and Architecture](#ai-safety-and-architecture)
+- [Decisions](#decisions)
+
 ## Product Direction
 
 AI-assisted video form analysis is the MVP center of gravity. Calis App should first prove that users will record short clips, understand structured feedback, and improve their exercise quality through repeat attempts.
@@ -18,17 +26,18 @@ Core MVP promise:
 4. Browser recording or upload flow for short clips.
 5. Backend media validation and transient video handling.
 6. Backend Vision API integration with app-managed credentials.
-7. Structured AI output for positive notes, form issues, severity, moments, corrections, and confidence.
-8. Safety validator for supported exercise scope, non-medical wording, sensitive-area caution, and fallback handling.
-9. Checklist feedback UI with retry and save-result actions.
-10. Form history showing saved feedback, repeated issues, and supportive progress.
-11. Comeback support as a lightweight prompt after missed practice days.
+7. Analysis engine for rep detection, joint-angle extraction, exercise-specific form rules, confidence scoring, and feedback prioritization.
+8. LLM coaching layer that explains structured analysis output in supportive plain language.
+9. Safety validator for supported exercise scope, non-medical wording, sensitive-area caution, and fallback handling.
+10. Checklist feedback UI with retry and save-result actions.
+11. Form history showing saved feedback, repeated issues, and supportive progress.
+12. Comeback support as a lightweight prompt after missed practice days.
 
 ## Later Roadmap
 
 Future AI and product features:
 
-1. Local pose-estimation pre-checks for visibility, camera angle, rep phases, and simple landmark quality.
+1. Browser-side MediaPipe pre-submission quality gate for camera angle, full-body visibility, and unusable clip quality before sending video to the Vision API. It is not the primary analyzer.
 2. Before/after attempt comparison for the same exercise.
 3. Broader exercise library with validation per exercise.
 4. Optional score or readiness indicators, only if they do not create shame or false certainty.
@@ -76,8 +85,9 @@ Next.js App Router
 -> Media validator
 -> Temporary media processor
 -> Vision API wrapper
--> Structured result parser
--> Safety validator
+-> Analysis engine
+-> LLM coaching layer
+-> Safety and schema validator
 -> Analysis database
 -> Checklist feedback response
 ```
@@ -108,7 +118,7 @@ Why: Push-up, squat, plank, lunge, and hollow hold are recognizable calisthenics
 
 Decision 005: Use backend Vision API integration with app-managed credentials.
 
-Why: Backend integration protects API keys, centralizes safety validation, supports cost controls, and creates a cleaner user experience.
+Why: Backend integration protects API keys, centralizes safety validation, supports cost controls, and creates a cleaner user experience. Gemini video-capable models are preferred because native video input preserves motion, tempo, and transitions that frame-sampling approaches for GPT or Claude can miss. This is important for observations such as push-up depth and lunge balance. Frame extraction remains a fallback for providers without suitable native video input. Verify the specific model, capabilities, and free-tier limits at implementation time because they change frequently.
 
 Decision 006: Analyze videos transiently and discard originals by default.
 
@@ -126,10 +136,14 @@ Decision 009: Validate all AI output before showing it.
 
 Why: The app needs predictable safety boundaries. Results should be checked for schema shape, supported exercise scope, medical claims, unsafe advice, and overly certain language.
 
-Decision 010: Keep alternative AI strategies documented, not primary.
+Decision 010: Defer browser-side MediaPipe to the Later Roadmap as a pre-submission quality gate.
 
-Why: User-provided keys and local pose-estimation-first workflows may be useful later, but they add complexity or reduce coaching quality for the initial user-facing MVP.
+Why: Browser-side MediaPipe should check camera angle, full-body visibility, and clip quality before a submission is sent to the Vision API. It is not the primary analyzer. This integration can reduce failed or low-confidence submissions later without expanding the initial MVP analysis stack.
 
 Decision 011: Defer native mobile until the AI video-analysis loop is validated.
 
 Why: Native mobile may improve camera ergonomics later, but the first goal is to prove that users record clips, trust the feedback, and retry based on suggestions.
+
+Decision 012: Build in a single Next.js App Router codebase. No separate backend service at MVP.
+
+Why: The backend workload at MVP is HTTP orchestration: validate, call the Vision API, run the analysis and coaching layers, normalize, store, and respond. Route handlers support this cleanly with natural API key protection, end-to-end TypeScript, built-in PWA support, and a single deployment. A Python backend becomes relevant only if server-side pose estimation is added later, at which point it should be a sidecar microservice, not a replacement.
