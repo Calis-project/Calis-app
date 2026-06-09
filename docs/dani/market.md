@@ -12,6 +12,15 @@ The fitness space is shifting from passive logging (e.g., Strava, MyFitnessPal) 
 | **CueForm AI / FormCheck** | Niche Custom CV Models | Hyper-accurate on specific, isolated powerlifting movements. | No holistic routine building, long-term progression tracking, or cognitive adaptability. |
 | **Open-Source Indie Ecosystem** | MediaPipe + Python Streamlit apps | Free; highly hackable; great starting point for custom fork code. | Terrible UX; lacks persistent memory; no LLM context loop. |
 
+### App Links
+
+- **Calisthenics AI Coach:** [Apple App Store](https://apps.apple.com/us/app/calisthenics-ai-coach/id6760506157)
+- **SportsReflector:** [Official website](https://sportsreflector.com/) | [Apple App Store](https://apps.apple.com/us/app/sportsreflector-ai-coach/id6759809796)
+- **Gymscore:** [Apple App Store](https://apps.apple.com/us/app/gymscore-ai-fitness-coach/id6744373919) | [Google Play](https://play.google.com/store/apps/details?id=com.hypenspace.FormAI)
+- **CueForm:** [Official website](https://cueform.ai/) | [Apple App Store](https://apps.apple.com/us/app/cueform-exercise-form-checker/id6450485479)
+- **FormCheck AI:** [Product page](https://mwm.ai/apps/formcheck-ai-biao-ge-jian-cha/1621267448)
+- **Open-source example:** [MSU-AI Form-Check on GitHub](https://github.com/MSU-AI/form-check)
+
 ## 3. Our Value Proposition
 1. **Calisthenics Focus:** We prioritize tendon health, leverage manipulation, and progressive bodyweight regressions over raw weight metrics.
 2. **Predictable Pricing Strategy:** By parsing skeletal metrics on the edge rather than passing raw video streams to LLMs, we minimize compute costs, allowing a sustainable, scalable free tier.
