@@ -1,57 +1,46 @@
 # Technical Plan
 
-## Table of Contents
+## Scope
 
-- [Architecture Summary](#architecture-summary)
-- [Next.js App Structure](#nextjs-app-structure)
-- [Data Model](#data-model)
-- [Enums](#enums)
-- [API Interfaces](#api-interfaces)
-- [AI Analysis Pipeline](#ai-analysis-pipeline)
-- [Alternative AI Strategies](#alternative-ai-strategies)
-- [Later Roadmap: Pre-submission Quality Gate](#later-roadmap-pre-submission-quality-gate)
-- [Privacy, Security, and Cost Controls](#privacy-security-and-cost-controls)
-- [MVP Build Order](#mvp-build-order)
-- [Repository Docs](#repository-docs)
-- [Development Priority](#development-priority)
+Build the MVP as one Next.js App Router application with TypeScript and basic
+PWA capabilities. Product behavior is defined in
+[Product Spec](PRODUCT_SPEC.md), and scope decisions are defined in
+[Roadmap and Decisions](ROADMAP_AND_DECISIONS.md).
 
-## Architecture Summary
+## Architecture
 
-The MVP should be a Next.js App Router web app with PWA capabilities. Next.js provides the app structure, routing, API route handlers, and server-side AI calls. PWA capabilities add installability and mobile app-like behavior without creating a second app or duplicate backend.
-
-The browser handles exercise selection, recording or upload, and feedback display through client components. Next.js route handlers own media validation, AI provider calls, analysis orchestration, result normalization, safety validation, persistence, and API key protection.
-
-The server-side analysis path has three distinct responsibilities:
-
-1. The Vision API wrapper obtains observations from the submitted video.
-2. The analysis engine converts those observations into exercise evidence through rep detection, joint-angle extraction, exercise-specific form rules, confidence scoring, and feedback prioritization.
-3. The LLM coaching layer explains the structured engine output in clear, supportive language. It does not receive raw video or unnormalized provider observations.
-
-The analysis engine output is the source of truth for detected reps, measurements, rule outcomes, timestamps, severity, and confidence. The coaching layer may add explanations and corrective wording, but it must not add, remove, or change the underlying evidence.
-
-Default MVP flow:
+The browser owns exercise selection, recording or upload, local preview, basic
+media checks, and feedback display. Next.js route handlers own validation,
+provider calls, analysis, coaching, persistence, and credentials.
 
 ```txt
-Next.js App Router
--> client recording/upload component
--> route handler media validation
--> Gemini native video input or fallback frame extraction
--> Vision API wrapper
--> analysis engine
--> LLM coaching layer
--> safety and schema validation
--> discard source video
--> store analysis metadata and feedback
--> return checklist feedback to user
+Client recording or upload
+  -> route handler media validation
+  -> Gemini native video or fallback frames
+  -> normalized provider observations
+  -> analysis engine
+  -> LLM coaching from analysis evidence
+  -> safety and schema validation
+  -> discard transient media
+  -> store metadata and feedback
+  -> return checklist result
 ```
 
-The MVP assumes app-managed backend Vision API credentials. API keys must use server-only environment variables and must never be exposed with `NEXT_PUBLIC_` or called from the frontend.
+| Component | Responsibility |
+|---|---|
+| Vision provider adapter | Obtain timestamped, confidence-scored observations |
+| Analysis engine | Normalize evidence, apply exercise rules, calculate confidence, and prioritize findings |
+| Coaching layer | Explain structured findings without changing the evidence |
+| Result validator | Enforce schema, evidence consistency, supported scope, and safety |
 
-PWA is not a separate implementation track. It is a small set of capabilities added to the Next.js app, starting with a manifest, icons, installability, mobile-friendly shell, and minimal service worker behavior when needed.
+The analysis engine is the source of truth for reps, phases, measurements,
+issues, timestamps, severity, priority, and confidence. The coaching layer must
+not receive raw video or unnormalized observations.
 
-## Next.js App Structure
+Provider credentials must remain in server-only environment variables and must
+never use `NEXT_PUBLIC_`.
 
-Suggested routes:
+## App Structure
 
 ```txt
 app/
@@ -60,307 +49,132 @@ app/
 |-- history/
 |-- profile/
 |-- api/
-|   |-- exercises/
-|   |   `-- supported/route.ts
-|   |-- analysis/
-|   |   |-- video/route.ts
-|   |   `-- [session_id]/route.ts
-|   `-- progress/
-|       `-- form-history/route.ts
-|-- manifest.ts
+|   |-- exercises/supported/route.ts
+|   |-- analysis/video/route.ts
+|   |-- analysis/[session_id]/route.ts
+|   `-- progress/form-history/route.ts
+`-- manifest.ts
 public/
-|-- icons/
+`-- icons/
 ```
 
-Client components should handle camera access, recording controls, upload selection, local preview, and client-side media checks. Server route handlers should handle validation, transient media processing, Vision API calls, storage, and result delivery.
+PWA work is limited initially to a manifest, icons, installability, and a
+mobile-friendly shell.
 
 ## Data Model
 
-Core entities:
-
-| Entity | Purpose | MVP |
-|---|---|---|
-| UserProfile | Stores experience, focus exercises, sensitive areas, and privacy preferences | Yes |
-| SupportedExercise | Defines exercises that AI analysis can evaluate | Yes |
-| FormAnalysisSession | Tracks one submitted video analysis attempt | Yes |
-| FormAnalysisResult | Stores normalized AI feedback for a session | Yes |
-| FormIssue | Stores one detected form issue | Yes |
-| PracticeHistory | Aggregates saved attempts and repeated issues | Yes |
-| AIRequestLog | Stores non-video operational metadata for debugging and cost tracking | Optional |
-| WorkoutSession | Future workout flow | No |
-| WorkoutCompletion | Future workout flow | No |
-
-UserProfile:
-
-```json
-{
-  "id": "user_001",
-  "experience_level": "beginner",
-  "focus_exercises": ["push_up", "squat", "plank"],
-  "sensitive_areas": ["wrists"],
-  "comeback_support_enabled": true,
-  "video_retention_consent": false,
-  "created_at": "2026-06-02T10:00:00Z",
-  "updated_at": "2026-06-02T10:00:00Z"
-}
-```
-
-SupportedExercise:
-
-```json
-{
-  "id": "push_up",
-  "name": "Push-up",
-  "category": "upper_body",
-  "difficulty": "beginner_to_intermediate",
-  "setup_instructions": [
-    "Place the camera to your side at about hip height.",
-    "Keep your full body visible from head to feet.",
-    "Record 3 to 6 controlled reps."
-  ],
-  "recording_guidance": {
-    "recommended_duration_seconds": 15,
-    "max_duration_seconds": 30,
-    "preferred_angle": "side",
-    "full_body_required": true
-  },
-  "common_mistakes": [
-    "hips_sagging",
-    "elbows_flared",
-    "partial_range_of_motion",
-    "head_dropping"
-  ],
-  "safety_notes": [
-    "Stop if you feel wrist, shoulder, or lower-back pain."
-  ],
-  "ai_analysis_allowed": true
-}
-```
-
-FormAnalysisSession:
-
-```json
-{
-  "id": "fas_001",
-  "user_id": "user_001",
-  "exercise_id": "push_up",
-  "status": "completed",
-  "video_duration_seconds": 18,
-  "source_video_retained": false,
-  "created_at": "2026-06-02T10:00:00Z",
-  "completed_at": "2026-06-02T10:00:25Z"
-}
-```
-
-FormAnalysisResult:
-
-```json
-{
-  "session_id": "fas_001",
-  "overall_summary": "Your reps are controlled, but your hip position changes near the bottom of several reps.",
-  "issues": [
-    {
-      "label": "Hips sagging",
-      "severity": "medium",
-      "timestamp_seconds": 9,
-      "explanation": "Your hips appear to drop as you lower into the rep.",
-      "correction": "Brace your core before each rep and stop the set when your body line changes.",
-      "safety_related": true
-    }
-  ],
-  "positive_notes": [
-    "Your tempo is steady.",
-    "Your hands stay planted consistently."
-  ],
-  "corrective_tips": [
-    "Try an incline push-up for cleaner body alignment.",
-    "Record from the side again so your body line is easy to review."
-  ],
-  "confidence": "medium",
-  "model_metadata": {
-    "provider": "backend_vision_api",
-    "model": "configured_on_server",
-    "analysis_version": "mvp_001"
-  }
-}
-```
-
-## Enums
-
-```txt
-experience_level: beginner, some_experience, intermediate
-supported_exercise_id: push_up, squat, plank, lunge, hollow_hold
-analysis_status: created, uploading, processing, completed, failed, rejected
-difficulty: beginner, beginner_to_intermediate, intermediate
-severity: low, medium, high
-confidence: low, medium, high
-video_source: recorded, uploaded
-category: upper_body, lower_body, core, full_body
-```
-
-## API Interfaces
-
-Conceptual MVP endpoints:
-
-```txt
-GET /api/exercises/supported
-POST /api/analysis/video
-GET /api/analysis/{session_id}
-GET /api/progress/form-history
-```
-
-Next.js route handler mapping:
-
-| Endpoint | Route handler |
+| Entity | Required Data |
 |---|---|
-| `GET /api/exercises/supported` | `app/api/exercises/supported/route.ts` |
-| `POST /api/analysis/video` | `app/api/analysis/video/route.ts` |
-| `GET /api/analysis/[session_id]` | `app/api/analysis/[session_id]/route.ts` |
-| `GET /api/progress/form-history` | `app/api/progress/form-history/route.ts` |
+| `UserProfile` | Experience level, focus exercises, sensitive areas, consent, and comeback preference |
+| `SupportedExercise` | ID, setup instructions, recording guidance, approved rules, common issues, and safety notes |
+| `FormAnalysisSession` | User, exercise, status, source, duration, timestamps, and `source_video_retained: false` |
+| `FormAnalysisResult` | Summary, issues, positive notes, corrections, confidence, and model metadata |
+| `FormIssue` | Label, severity, evidence, timestamp, correction, confidence, priority, and safety flag |
+| `AIRequestLog` | Optional provider, latency, failure reason, and estimated cost without media |
 
-`GET /api/exercises/supported`
-
-- Returns only exercises with `ai_analysis_allowed = true`.
-- Includes setup instructions, recording guidance, common mistakes, and safety notes.
-
-`POST /api/analysis/video`
-
-- Accepts `exercise_id`, `video_source`, and one short video file.
-- Validates authentication or local user identity, exercise support, file type, file size, duration, and required metadata.
-- Rejects unsupported exercises instead of asking AI to infer arbitrary movements.
-- Calls the backend AI analysis pipeline.
-- Discards the source video after processing.
-- Stores `FormAnalysisSession` and `FormAnalysisResult`.
-
-`GET /api/analysis/{session_id}`
-
-- Returns session status and result when available.
-- Never returns raw source video in the MVP.
-
-`GET /api/progress/form-history`
-
-- Returns saved analysis metadata, repeated issues, positive notes, and user-visible progress summaries.
-
-## AI Analysis Pipeline
-
-Backend steps:
-
-1. Validate the selected exercise against `SupportedExercise`.
-2. Validate media type, duration, size, and basic readability.
-3. Prepare native video input for a Gemini video-capable model. Extract representative frames only as a fallback for providers without suitable native video input.
-4. Send the exercise definition, user sensitive areas, safety constraints, and media input to the Vision API wrapper.
-5. Normalize provider observations into an internal structured observation format.
-6. Run the analysis engine to detect reps, extract joint angles, evaluate exercise-specific form rules, calculate confidence, and prioritize feedback.
-7. Send only the structured analysis output to the LLM coaching layer for plain-language explanations, positive notes, and corrective cues.
-8. Normalize the coaching response into `FormAnalysisResult`.
-9. Validate issue labels, severity, timestamps, safety flags, and unsupported claims.
-10. Remove or soften medical, diagnostic, or overconfident language.
-11. Persist only session metadata and normalized feedback.
-12. Delete transient source video and temporary frames.
-13. Return checklist feedback to the frontend.
-
-Gemini video-capable models are the preferred Vision API provider because native video input preserves motion, tempo, and transitions. Frame extraction is a fallback for GPT, Claude, or other providers without suitable native video support. The exact model and free-tier limits must be verified at implementation time because provider offerings change frequently.
-
-The Vision provider instructions should require observations that:
-
-- analyze only the selected supported exercise
-- focus on visible form observations
-- mention uncertainty when visibility is poor
-- avoid diagnosis or medical advice
-
-The LLM coaching prompt should:
-
-- explain only the structured analysis engine output
-- provide practical corrections
-- include positive notes
-- avoid score-first feedback
-- preserve confidence limits and avoid adding unsupported observations
-
-If analysis fails, the backend should return a supportive failure state and suggest recording again with better angle, lighting, or full-body visibility.
-
-## Alternative AI Strategies
-
-Default: backend Vision API with app-managed key.
-
-- Best user experience for MVP.
-- Keeps credentials private.
-- Allows consistent validation, logging, and safety checks.
-- Requires backend infrastructure and cost controls.
-
-Alternative: user-provided API key mode.
-
-- Useful for developer builds, internal testing, or power users.
-- Reduces platform cost but creates poor normal-user onboarding.
-- Should be separated from production UX and clearly marked as developer mode.
-- Still should route through backend validation when possible.
-
-## Later Roadmap: Pre-submission Quality Gate
-
-Browser-side MediaPipe is deferred until after the MVP analysis loop is validated. Its role is a pre-submission quality gate that checks camera angle, full-body visibility, and unusable clip quality before sending video to the Vision API. It is not the primary analyzer and does not replace the server-side Vision provider, analysis engine, or LLM coaching layer.
-
-## Privacy, Security, and Cost Controls
-
-Under the GDPR, an identifiable exercise video is personal data. Movement-derived fitness information may constitute data concerning health, and therefore special-category personal data, depending on the inferences made and the processing context. Biometric data is special-category data when it is processed to uniquely identify a person; the MVP must not use exercise footage for biometric identification.
-
-MVP defaults:
-
-- source videos are transient
-- source videos are discarded after analysis
-- temporary frames are discarded after analysis
-- stored history contains only metadata and feedback
-- movement-derived analysis data is stored separately from direct user identity, linked through an internal pseudonymous identifier
-- frontend never receives provider credentials
-- Vision API credentials are stored in server-only environment variables, never `NEXT_PUBLIC_`
-- route handler logs must not include raw media
-
-These defaults support GDPR purpose limitation, data minimisation, storage limitation, and privacy by design. The remaining product and legal controls are:
-
-- require explicit opt-in consent before the first analysis
-- disclose clearly before submission what data is processed, what is stored, and what is discarded
-- allow consent to be withdrawn without implying that previously requested processing can be undone
-- display the disclaimer: "This app is not medical or physiotherapy advice."
-- require separate explicit consent for any future raw-video retention
-
-Operational controls:
-
-- max duration per clip: 30 seconds
-- supported formats should be browser-friendly, such as `mp4`, `mov`, or `webm`
-- enforce upload size limits
-- rate-limit analysis requests per user
-- record provider latency, failure reason, and estimated cost without storing video
-- provide a clear retry path when media quality is too poor
-
-## MVP Build Order
-
-1. Project setup: Next.js App Router, TypeScript, routing, route handlers, storage, and responsive app shell.
-2. Supported exercise seed data: push-up, squat, plank, lunge, and hollow hold.
-3. Profile setup: experience level, focus exercises, sensitive areas, and privacy acknowledgement.
-4. Basic PWA setup: `app/manifest.ts`, icons, installability, and mobile-friendly shell.
-5. Exercise selection and setup guidance.
-6. Client recording or upload flow with duration and format validation.
-7. Route handler analysis endpoint with transient media handling.
-8. Gemini-first Vision API wrapper with native-video input and a provider fallback interface.
-9. Analysis engine for rep detection, joint angles, exercise rules, confidence scoring, and feedback prioritization.
-10. LLM coaching layer that consumes structured engine output.
-11. Result validator for safety, schema, supported exercises, and non-medical language.
-12. Checklist feedback screen with positive notes, issues, severity, moments, and tips.
-13. Retry and save-result flow.
-14. Form history with repeated issues and supportive progress summaries.
-15. Lightweight comeback support that recommends a simple practice attempt after gaps.
-
-## Repository Docs
+Form history is derived from saved sessions and results. Store movement data
+under a pseudonymous user identifier rather than direct identity.
 
 ```txt
-Calis-app/
-|-- README.md
-|-- docs/
-|   |-- AI_MOVEMENT_ANALYSIS_CONCEPTS.md
-|   |-- AI_Movement_Analysis_Stack_Report.md
-|   |-- PRODUCT_SPEC.md
-|   |-- TECHNICAL_PLAN.md
-|   `-- ROADMAP_AND_DECISIONS.md
+experience_level: beginner | some_experience | intermediate
+exercise_id: push_up | squat | plank | lunge | hollow_hold
+analysis_status: created | uploading | processing | completed | failed | rejected
+severity: low | medium | high
+confidence: low | medium | high
+video_source: recorded | uploaded
 ```
 
-## Development Priority
+## API
 
-Focus on the shortest reliable AI analysis loop in one Next.js codebase: supported exercise selection, clean client-side video capture, route-handler Vision API orchestration, a dedicated analysis engine, structured LLM coaching, checklist feedback, transient video handling, and supportive retry. Do not build a separate backend service, live feedback, broad workout generation, retained video libraries, social features, or medical guidance in the first MVP. If server-side pose estimation is added later, implement it as a Python sidecar microservice rather than replacing the Next.js application backend.
+| Endpoint | Behavior |
+|---|---|
+| `GET /api/exercises/supported` | Return approved exercises with setup, recording, common-issue, and safety guidance |
+| `POST /api/analysis/video` | Validate and analyze one short clip, save the result, and discard transient media |
+| `GET /api/analysis/{session_id}` | Return session status and normalized result; never return source video |
+| `GET /api/progress/form-history` | Return saved attempts, repeated issues, positive notes, and progress summaries |
+
+`POST /api/analysis/video` accepts:
+
+- `exercise_id`
+- `video_source`
+- one video file
+
+It must validate identity, consent, supported exercise, media type, size,
+duration, and readability. Unsupported exercises must be rejected before any
+provider call.
+
+## Analysis Pipeline
+
+1. Validate consent, exercise, and media.
+2. Create a processing session.
+3. Send native video to the configured Gemini adapter; use representative frames
+   only when native video is unavailable.
+4. Request visible observations, media quality, estimated reps and phases,
+   timestamps, and confidence.
+5. Normalize the provider response into a stable internal schema.
+6. Apply exercise-specific rules and calculate confidence and priority.
+7. Return a retry state when evidence is inadequate.
+8. Send structured analysis evidence to the coaching layer.
+9. Validate coaching against the evidence, schema, and safety rules.
+10. Store normalized metadata and feedback.
+11. Delete source video and temporary frames in success and failure paths.
+12. Return the result or a supportive retry response.
+
+Provider instructions must limit analysis to the selected exercise and visible
+evidence. Coaching must preserve confidence, include positive observations, and
+avoid unsupported measurements or claims.
+
+## Controls
+
+### Media and Operations
+
+- Maximum clip duration: 30 seconds.
+- Support browser-friendly formats such as `mp4`, `mov`, and `webm`.
+- Enforce file-size, request-rate, and concurrency limits.
+- Benchmark 10-30 second clips for latency, cost, sampling, and reliability.
+- Log operational metadata only; never log raw media.
+- Keep provider selection behind an adapter.
+- Verify model availability, formats, quotas, pricing, and retention terms
+  during implementation.
+
+### Privacy and Security
+
+- Require explicit opt-in before the first analysis.
+- Explain before submission what is processed, stored, and discarded.
+- Treat source videos and extracted frames as transient.
+- Store only required metadata and normalized feedback.
+- Separate movement data from direct identity.
+- Never use footage for biometric identification.
+- Require separate consent for future raw-video retention.
+- Keep all provider credentials server-side.
+
+### Result Safety
+
+- Reject unsupported exercises and invalid schemas.
+- Reject or soften medical, diagnostic, unsafe, or overconfident language.
+- Preserve evidence, confidence, and sensitive-area constraints.
+- Return clear retry guidance for poor angle, lighting, visibility, or media
+  quality.
+- Display: "This app is not medical or physiotherapy advice."
+
+## Later Extension
+
+Browser-side MediaPipe may later reject unusable framing, incomplete body
+visibility, or poor clip quality before upload. It is a quality gate, not the
+primary analyzer.
+
+If server-side pose estimation becomes necessary, add a Python sidecar service
+without replacing the Next.js application backend.
+
+## Build Order
+
+1. Create the Next.js shell, routes, storage, profile, and minimal PWA setup.
+2. Seed the five supported exercises and their guidance.
+3. Build recording or upload with client-side validation.
+4. Implement the analysis endpoint and transient media cleanup.
+5. Add the Gemini-first provider adapter and normalized observation schema.
+6. Implement exercise rules, confidence, prioritization, and retry handling.
+7. Add evidence-constrained coaching and result validation.
+8. Build checklist feedback with retry and save actions.
+9. Add form history and repeated-issue summaries.
+10. Add lightweight comeback support.
