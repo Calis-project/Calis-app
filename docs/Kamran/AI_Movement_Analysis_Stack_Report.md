@@ -8,6 +8,7 @@
 - [Stack Decision](#stack-decision)
 - [MVP Architecture](#mvp-architecture)
 - [Responsibility Boundaries](#responsibility-boundaries)
+- [CV and VLM Roles](#cv-and-vlm-roles)
 - [Recommended Stack](#recommended-stack)
 - [Analysis Engine Requirements](#analysis-engine-requirements)
 - [Operational Requirements](#operational-requirements)
@@ -83,6 +84,18 @@ remove, or change findings, measurements, severity, priority, or confidence.
 When evidence is insufficient, the system should request a better clip rather
 than return confident feedback. Unsupported exercises must be rejected rather
 than analyzed generically.
+
+## CV and VLM Roles
+
+| Component | Role |
+|---|---|
+| Computer vision and pose models | Extract landmarks and support measurable checks such as visibility, joint angles, phases, and repetitions |
+| Vision-language model | Interpret video context and return structured temporal observations without claiming pose-grade precision |
+| Analysis engine | Validate either source, apply approved exercise rules, combine confidence, and remain the source of truth |
+
+For the MVP, Gemini is the primary observation provider. Browser-side pose
+estimation remains a later quality gate; it may become an analysis input only
+after validation against human-labeled clips.
 
 ## Recommended Stack
 

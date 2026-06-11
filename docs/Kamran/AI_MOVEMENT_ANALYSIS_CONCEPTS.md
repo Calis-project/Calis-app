@@ -7,8 +7,10 @@
   - [Computer Vision and Pose Estimation](#computer-vision-and-pose-estimation)
   - [Common Pose Tools and Models](#common-pose-tools-and-models)
   - [2D Pose, 3D Pose, and Tracking](#2d-pose-3d-pose-and-tracking)
+  - [Rep and Phase Tracking](#rep-and-phase-tracking)
   - [Biomechanics and Rule-Based Analysis](#biomechanics-and-rule-based-analysis)
   - [Confidence](#confidence)
+  - [Quality Gates and Validation](#quality-gates-and-validation)
   - [VLMs, LLMs, and Hybrid Analysis](#vlms-llms-and-hybrid-analysis)
 - [Calis App Pipeline](#calis-app-pipeline)
 - [Relevant Tools](#relevant-tools)
@@ -85,6 +87,16 @@ and should not be treated as motion-capture-quality data.
 movement phases, tempo, and alignment changes. Occlusion, fast motion,
 incomplete framing, or multiple people can reduce reliability.
 
+### Rep and Phase Tracking
+
+Pose landmarks can be tracked across frames to identify movement phases. A
+**state machine** defines the expected sequence, such as standing, lowering,
+bottom, rising, and standing for one squat repetition.
+
+**Landmark smoothing** reduces frame-to-frame noise before angles, phases, or
+repetitions are calculated. Complete phase transitions should be required before
+a repetition is counted.
+
 ### Biomechanics and Rule-Based Analysis
 
 **Biomechanics** describes movement through measurements such as joint angles,
@@ -95,8 +107,10 @@ are approximations.
 evidence. For example, a squat rule may evaluate estimated depth during the
 bottom phase.
 
-Rules make findings repeatable and testable, but thresholds must be validated
-across camera positions, body types, clothing, and movement variations.
+Each exercise needs rules for valid phases, complete repetitions, joint-angle or
+alignment thresholds, timing, and minimum landmark confidence. Rules make
+findings repeatable and testable, but thresholds must be validated across camera
+positions, body types, clothing, and movement variations.
 
 ### Confidence
 
@@ -107,6 +121,17 @@ analysis and final feedback.
 When important evidence is uncertain or hidden, the app should request a better
 recording instead of presenting precise feedback. Confidence does not indicate
 that an exercise is safe or correct.
+
+### Quality Gates and Validation
+
+A **pre-upload quality gate** uses browser checks or pose estimation to reject a
+clip when required joints are hidden, framing is unsuitable, or confidence is
+too low. A **confidence gate** similarly prevents uncertain evidence from
+becoming a form finding.
+
+Rules and thresholds must be calibrated against varied, human-labeled clips.
+Validation should measure incorrect findings, missed issues, rep-count error,
+and whether low-quality clips are rejected appropriately.
 
 ### VLMs, LLMs, and Hybrid Analysis
 
@@ -123,6 +148,10 @@ Calis App uses a **hybrid approach**:
 2. The analysis engine normalizes observations and applies deterministic rules.
 3. An LLM explains the resulting evidence.
 4. Schema and safety checks validate the response before display.
+
+CV is repeatable but sensitive to camera position, occlusion, landmark error,
+and rule quality. A VLM handles context more flexibly but may be inconsistent or
+produce unsupported observations. Neither should be treated as ground truth.
 
 ## Calis App Pipeline
 
