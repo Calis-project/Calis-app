@@ -28,12 +28,35 @@ physiotherapy advice.
 supports exercise observation, movement-phase estimation, and body-position
 analysis.
 
-**Pose estimation** predicts body landmarks such as shoulders, elbows, hips,
-knees, and ankles. A landmark normally includes image coordinates and a
+**Pose model** is an AI model that detects a person's body position from an
+image or video.
+
+**Pose estimation** is the process of using a pose model to predict body
+landmarks.
+
+**Body landmarks** are detected points on the body, such as shoulders, elbows,
+wrists, hips, knees, and ankles. Each point usually has coordinates and a
 confidence or visibility value.
 
 Pose estimation provides measurements; it does not determine whether an
 exercise is correct. That decision belongs to the analysis engine.
+
+### Common Pose Tools and Models
+
+- **MediaPipe Pose Landmarker** is Google's lightweight pose model and toolkit,
+  commonly used in browsers and mobile apps.
+- **MoveNet** is a fast TensorFlow pose model designed for real-time use.
+- **YOLO-Pose** detects people and their body landmarks, and is commonly run on
+  servers with GPU support.
+- **OpenPose** is a compute-heavy pose system that can detect body, hand, and
+  facial landmarks.
+
+**Browser inference** runs the pose model on the user's device. **Server
+inference** uploads the video or frames and runs the model on backend hardware.
+MediaPipe and MoveNet support both and are commonly used in browsers. YOLO-Pose
+is usually server-hosted but can use a compatible browser runtime. OpenPose is
+normally server-hosted; browser use requires a custom build and is generally
+impractical.
 
 ### 2D Pose, 3D Pose, and Tracking
 
@@ -120,13 +143,15 @@ confidence. The coaching layer may change wording, not evidence.
 | Gemini video-capable model | Preferred MVP source of temporal observations |
 | MediaPipe Pose Landmarker | Later browser quality gate for framing and body visibility |
 | MoveNet | Possible alternative browser pose model |
+| YOLO-Pose | Possible browser or server pose model; commonly server-hosted |
+| OpenPose | Possible browser or server pose system; commonly server-hosted |
 | FFmpeg | Optional server-side media conversion or frame extraction |
 | CVAT or Label Studio | Test-data annotation and output review |
 
-OpenPose, MMPose, TensorFlow.js, ONNX Runtime Web, and image-capable providers
-remain possible research or fallback options. They are not required for the MVP.
-Specific models, versions, formats, quotas, prices, browser support, and licenses
-must be verified during implementation.
+MMPose, TensorFlow.js, ONNX Runtime Web, and image-capable providers remain
+possible research or fallback options. They are not required for the MVP.
+Specific models, versions, formats, quotas, prices, browser support, and
+licenses must be verified during implementation.
 
 ## Recommended MVP Approach
 
