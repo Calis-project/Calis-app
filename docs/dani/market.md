@@ -19,7 +19,7 @@ The fitness space is shifting from passive logging (e.g., Strava, MyFitnessPal) 
 - **Gymscore:** [Apple App Store](https://apps.apple.com/us/app/gymscore-ai-fitness-coach/id6744373919) | [Google Play](https://play.google.com/store/apps/details?id=com.hypenspace.FormAI)
 - **CueForm:** [Official website](https://cueform.ai/) | [Apple App Store](https://apps.apple.com/us/app/cueform-exercise-form-checker/id6450485479)
 - **FormCheck AI:** [Product page](https://mwm.ai/apps/formcheck-ai-biao-ge-jian-cha/1621267448)
-- **Open-source example:** [MSU-AI Form-Check on GitHub](https://github.com/MSU-AI/form-check)
+- **Open-source example:** [MSU-AI Form-Check on GitHub](https://github.com/MSU-AI/form-check) (abandoned and incomplete)
 
 ## 3. Our Value Proposition
 1. **Calisthenics Focus:** We prioritize tendon health, leverage manipulation, and progressive bodyweight regressions over raw weight metrics.
