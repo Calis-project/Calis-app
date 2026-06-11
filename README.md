@@ -15,3 +15,4 @@ The MVP focuses on short-video analysis for push-up, squat, plank, lunge, and ho
 - [Roadmap and Decisions](docs/Kamran/ROADMAP_AND_DECISIONS.md) - MVP roadmap, later AI options, safety architecture, and key product/technical decisions.
 - [AI Movement Analysis Concepts and Tools](docs/Kamran/AI_MOVEMENT_ANALYSIS_CONCEPTS.md) - beginner-friendly definitions, the analysis pipeline, representative tools, and their roles.
 - [AI Movement Analysis Stack Report](docs/Kamran/AI_Movement_Analysis_Stack_Report.md) - technical options, cost considerations, privacy tradeoffs, and the recommended analysis stack.
+- [Candidate Architecture Patterns and Evaluation Plan](docs/Kamran/CANDIDATE_ARCHITECTURE_PATTERNS_AND_EVALUATION_PLAN.md) - fresh MVP architecture candidates, CV options, scope priorities, validation gates, and final-decision questions.
