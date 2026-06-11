@@ -1,5 +1,20 @@
 # Technical Plan
 
+## Table of Contents
+
+- [Scope](#scope)
+- [Architecture](#architecture)
+- [App Structure](#app-structure)
+- [Data Model](#data-model)
+- [API](#api)
+- [Analysis Pipeline](#analysis-pipeline)
+- [Controls](#controls)
+  - [Media and Operations](#media-and-operations)
+  - [Privacy and Security](#privacy-and-security)
+  - [Result Safety](#result-safety)
+- [Later Extension](#later-extension)
+- [Build Order](#build-order)
+
 ## Scope
 
 Build the MVP as one Next.js App Router application with TypeScript and basic

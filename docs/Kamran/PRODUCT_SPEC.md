@@ -1,5 +1,19 @@
 # Product Spec
 
+## Table of Contents
+
+- [Product](#product)
+- [Users](#users)
+- [MVP Scope](#mvp-scope)
+- [Core Experience](#core-experience)
+  - [First Use](#first-use)
+  - [Analysis](#analysis)
+  - [Feedback](#feedback)
+  - [History and Return](#history-and-return)
+- [Privacy](#privacy)
+- [Safety and Tone](#safety-and-tone)
+- [Success](#success)
+
 ## Product
 
 Calis App is a Next.js web app with PWA capabilities that helps people improve

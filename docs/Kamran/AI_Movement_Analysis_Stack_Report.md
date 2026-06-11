@@ -2,6 +2,17 @@
 
 *Prepared: June 2026*
 
+## Table of Contents
+
+- [Objective](#objective)
+- [Stack Decision](#stack-decision)
+- [MVP Architecture](#mvp-architecture)
+- [Responsibility Boundaries](#responsibility-boundaries)
+- [Recommended Stack](#recommended-stack)
+- [Analysis Engine Requirements](#analysis-engine-requirements)
+- [Operational Requirements](#operational-requirements)
+- [Privacy and Safety](#privacy-and-safety)
+
 ## Objective
 
 Calis App analyzes short videos of push-ups, squats, planks, lunges, and hollow

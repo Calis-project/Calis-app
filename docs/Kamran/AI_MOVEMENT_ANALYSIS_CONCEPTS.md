@@ -1,5 +1,20 @@
 # AI Movement Analysis Concepts and Tools
 
+## Table of Contents
+
+- [Purpose](#purpose)
+- [Essential Concepts](#essential-concepts)
+  - [Computer Vision and Pose Estimation](#computer-vision-and-pose-estimation)
+  - [Common Pose Tools and Models](#common-pose-tools-and-models)
+  - [2D Pose, 3D Pose, and Tracking](#2d-pose-3d-pose-and-tracking)
+  - [Biomechanics and Rule-Based Analysis](#biomechanics-and-rule-based-analysis)
+  - [Confidence](#confidence)
+  - [VLMs, LLMs, and Hybrid Analysis](#vlms-llms-and-hybrid-analysis)
+- [Calis App Pipeline](#calis-app-pipeline)
+- [Relevant Tools](#relevant-tools)
+- [Recommended MVP Approach](#recommended-mvp-approach)
+- [Limits and Safety](#limits-and-safety)
+
 ## Purpose
 
 This guide defines the concepts needed to understand AI-assisted movement

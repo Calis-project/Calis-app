@@ -1,5 +1,13 @@
 # Roadmap and Decisions
 
+## Table of Contents
+
+- [Product Direction](#product-direction)
+- [MVP Roadmap](#mvp-roadmap)
+- [Later Roadmap](#later-roadmap)
+- [Non-Negotiable Constraints](#non-negotiable-constraints)
+- [Decision Record](#decision-record)
+
 ## Product Direction
 
 Calis App should first prove that users will record short exercise clips,
