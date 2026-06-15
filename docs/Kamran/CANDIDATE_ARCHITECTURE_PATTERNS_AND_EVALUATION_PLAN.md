@@ -159,6 +159,22 @@ This is fast to prototype across exercises but has weaker measurement
 repeatability. Current Gemini video processing samples at 1 FPS by default,
 which may miss fast exercise phases unless sampling is configured and tested.
 
+## Pattern Technology Composition
+
+Quick reference for the pattern families above:
+
+| Pattern | CV | VLM | LLM |
+|---|---|---|---|
+| P1 Browser CV, browser rules | Yes | No | No |
+| P2 Browser CV, server rules | Yes | No | No |
+| P3 P2 + LLM wording | Yes | No | Yes, text only |
+| P4 Selective VLM escalation | Yes | Yes, on low-confidence cases | No |
+| P5 Parallel CV and VLM fusion | Yes | Yes | No |
+| P6 Server CV | Yes, server-side | No | No |
+| P7 VLM primary + CV gate | Yes, gate only | Yes, primary analyzer | No |
+
+P3 keeps the analysis CV-based and only uses an LLM to rephrase approved findings. P4, P5, and P7 are the patterns that actually use a VLM for vision analysis. The recommended MVP, P2, uses CV only.
+
 ## Architecture Decision Matrix
 
 Ratings are relative planning judgments, not benchmark results.
