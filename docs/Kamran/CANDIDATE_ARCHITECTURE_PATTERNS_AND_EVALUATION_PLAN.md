@@ -163,6 +163,8 @@ which may miss fast exercise phases unless sampling is configured and tested.
 
 Quick reference for the pattern families above:
 
+Patterns describe architecture shapes; options describe the specific decision candidates scored in the matrix below.
+
 | Pattern | CV | VLM | LLM |
 |---|---|---|---|
 | P1 Browser CV, browser rules | Yes | No | No |
@@ -205,9 +207,7 @@ Any option that fails a gate is disqualified for MVP regardless of weighted scor
 
 Weighted score formula:
 
-$$
-  ext{Total} = \sum (\text{criterion score} \times \text{weight})
-$$
+Total score = sum of (criterion score × weight) across all weighted criteria.
 
 ### Decision Options Evaluated
 
@@ -217,7 +217,7 @@ $$
 | O2 | O1 plus LLM wording constrained to approved findings | Post-MVP Candidate | P3 |
 | O3 | O1 plus selective VLM escalation only for predefined low-confidence cases | Post-MVP Candidate | P4 |
 | O4 | VLM-primary analysis with browser CV quality gate and deterministic post-validation | Research Candidate | P7 |
-| O5 | Browser CV telemetry to server heuristics engine plus LLM coaching from structured findings | Post-MVP Candidate | Dani architecture |
+| O5 | Browser CV telemetry to server heuristics engine plus LLM coaching from structured findings | Post-MVP Candidate | Dani architecture (O5) |
 
 Note: O5 is the option that represents Dani's described architecture (CV landmarks -> server biomechanical heuristics -> LLM coaching text).
 
