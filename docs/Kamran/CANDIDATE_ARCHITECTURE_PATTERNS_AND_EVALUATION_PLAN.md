@@ -159,30 +159,89 @@ This is fast to prototype across exercises but has weaker measurement
 repeatability. Current Gemini video processing samples at 1 FPS by default,
 which may miss fast exercise phases unless sampling is configured and tested.
 
+## Pattern Technology Composition
+
+Quick reference for the pattern families above:
+
+Patterns describe architecture shapes; options describe the specific decision candidates scored in the matrix below.
+
+| Pattern | CV | VLM | LLM |
+|---|---|---|---|
+| P1 Browser CV, browser rules | Yes | No | No |
+| P2 Browser CV, server rules | Yes | No | No |
+| P3 P2 + LLM wording | Yes | No | Yes, text only |
+| P4 Selective VLM escalation | Yes | Yes, on low-confidence cases | No |
+| P5 Parallel CV and VLM fusion | Yes | Yes | No |
+| P6 Server CV | Yes, server-side | No | No |
+| P7 VLM primary + CV gate | Yes, gate only | Yes, primary analyzer | No |
+
+P3 keeps the analysis CV-based and only uses an LLM to rephrase approved findings. P4, P5, and P7 are the patterns that actually use a VLM for vision analysis. The recommended MVP, P2, uses CV only.
+
 ## Architecture Decision Matrix
 
-Ratings are relative planning judgments, not benchmark results.
+Use a two-step decision process: hard gates first, then weighted scoring.
+Scores below are planning estimates to prioritize implementation and evaluation.
 
-| Pattern | Raw Video Leaves Device | Evidence Repeatability | Device Dependence | Variable Cost | Build and Calibration | Main Risk | MVP Fit |
-|---|---|---|---|---|---|---|---|
-| P1 Browser CV + browser rules | No | High | High | Very low | Medium | Weak observability and fragmented behavior | Good prototype |
-| P2 Browser CV + server rules | No | High | High | Low | Medium | Browser performance and telemetry trust | Best baseline |
-| P3 P2 + LLM wording | No | High for findings | High | Low-medium | Medium | Wording latency and unsupported text | Good optional layer |
-| P4 Selective VLM escalation | Sometimes | Medium-high if constrained | Medium | Medium | High | Consent, routing, and disagreement | Controlled experiment |
-| P5 CV and VLM fusion | Yes | Unproven | Medium | Medium-high | Very high | False confidence from bad fusion | Post-MVP research |
-| P6 Server CV | Yes | High | Low | Medium-high | High | Infrastructure and privacy burden | Later fallback |
-| P7 VLM primary + CV gate | Yes | Medium-low | Low | Medium | Low-medium | Sampling and inconsistent findings | Fast prototype, weak baseline |
+### Step 1: Hard Gates (Must Pass)
 
-### Decision by Priority
+| Gate | Minimum Requirement |
+|---|---|
+| Safety language gate | No unsupported medical or diagnostic claims in validation set |
+| Evidence gate | Inadequate evidence must return retry or abstention |
+| Repeatability gate | Same input and same rule/model version produce identical deterministic findings |
+| Privacy gate | Must match selected product policy for whether raw video can leave device |
 
-| Priority | Strongest Candidate | Reason |
+Any option that fails a gate is disqualified for MVP regardless of weighted score.
+
+### Step 2: Weighted Criteria
+
+| Criterion | Weight | Scoring Guidance (1-5) |
 |---|---|---|
-| Privacy and low variable cost | P1 or P2 | Video remains on device |
-| Centralized, testable product | P2 | Rules and results are versioned on the server |
-| Better feedback tone | P3 | Adds wording without changing evidence |
-| Fast exercise expansion | P7 | Requires fewer geometric rules but is harder to validate |
-| Consistent compute across devices | P6 | Server controls inference hardware |
-| Researching complementary evidence | P4 before P5 | Selective escalation is simpler than full fusion |
+| Form-finding precision and safety reliability | 30% | 1=high hallucination risk, 5=high precision under holdout testing |
+| Privacy and raw-video exposure | 20% | 1=always uploads video, 5=video remains local by default |
+| Evidence repeatability | 15% | 1=non-repeatable outputs, 5=deterministic stable outputs |
+| Variable cost per analyzed session | 10% | 1=high provider dependency, 5=low predictable cost |
+| End-to-end latency (p50/p95) | 10% | 1=often slow, 5=consistently responsive |
+| Build and calibration complexity | 10% | 1=very high complexity, 5=low implementation burden |
+| Exercise expansion flexibility | 5% | 1=hard to extend, 5=easy to add validated exercise variants |
+
+Weighted score formula:
+
+Total score = sum of (criterion score × weight) across all weighted criteria.
+
+### Decision Options Evaluated
+
+| Option ID | Option Summary | Scope Label | Source Pattern |
+|---|---|---|---|
+| O1 | Browser CV quality gate plus browser landmarks, server deterministic rules, template feedback | MVP Candidate | P2 |
+| O2 | O1 plus LLM wording constrained to approved findings | Post-MVP Candidate | P3 |
+| O3 | O1 plus selective VLM escalation only for predefined low-confidence cases | Post-MVP Candidate | P4 |
+| O4 | VLM-primary analysis with browser CV quality gate and deterministic post-validation | Research Candidate | P7 |
+| O5 | Browser CV telemetry to server heuristics engine plus LLM coaching from structured findings | Post-MVP Candidate | Dani architecture (O5) |
+
+Note: O5 is the option that represents Dani's described architecture (CV landmarks -> server biomechanical heuristics -> LLM coaching text).
+
+### Planning Scores (Pre-Benchmark)
+
+| Option ID | Precision and Safety (30%) | Privacy (20%) | Repeatability (15%) | Cost (10%) | Latency (10%) | Complexity (10%) | Expansion (5%) | Weighted Total (0-5) |
+|---|---|---|---|---|---|---|---|---|
+| O1 | 4.0 | 5.0 | 5.0 | 4.0 | 4.0 | 3.5 | 3.0 | 4.25 |
+| O2 | 4.0 | 5.0 | 5.0 | 3.5 | 3.5 | 3.0 | 3.5 | 4.13 |
+| O3 | 4.0 | 3.5 | 4.0 | 2.5 | 2.5 | 2.5 | 4.0 | 3.53 |
+| O4 | 3.0 | 2.0 | 2.5 | 2.5 | 3.0 | 3.5 | 4.5 | 2.88 |
+| O5 | 4.0 | 5.0 | 4.5 | 3.5 | 3.5 | 3.0 | 4.0 | 4.08 |
+
+### Decision Readout
+
+| Rank | Option ID | Why It Ranks Here |
+|---|---|---|
+| 1 | O1 | Best MVP baseline for privacy, repeatability, and controlled deterministic behavior |
+| 2 | O2 | Strong near-term upgrade once deterministic findings are stable |
+| 3 | O5 | Strong alternative with explicit heuristics layer; should be benchmarked directly against O1 |
+| 4 | O3 | Promising for edge cases but adds cost, consent complexity, and routing risk |
+| 5 | O4 | Fast for broad exercise coverage but weaker repeatability and privacy profile |
+
+Recommended execution order: O1 as MVP baseline, then benchmark O5 in parallel as the primary alternative, then add O2 if wording quality needs improvement.
 
 ## Pose Technology Matrix
 
