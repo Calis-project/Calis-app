@@ -48,6 +48,10 @@ LANDMARK_NAMES = {
     31: "LEFT_FOOT_INDEX", 32: "RIGHT_FOOT_INDEX"
 }
 
+def is_landmark_visible(lm, threshold=0.5):
+    """Returns True if the landmark's visibility confidence is above the threshold."""
+    return getattr(lm, 'visibility', 0.0) >= threshold
+
 def ensure_directory(path):
     """Creates a directory if it does not exist."""
     if not os.path.exists(path):
@@ -188,9 +192,11 @@ def process_images():
             # Calculate pixel positions for drawing connections
             pixel_points = {}
             for i, lm in enumerate(landmarks):
-                # MediaPipe normalizes coordinates (0.0 to 1.0). Convert to pixel space.
-                cx, cy = int(lm.x * w), int(lm.y * h)
-                pixel_points[i] = (cx, cy)
+                # Filter out landmarks that are not visible to clean up lines and occluded parts
+                if is_landmark_visible(lm, threshold=0.5):
+                    # MediaPipe normalizes coordinates (0.0 to 1.0). Convert to pixel space.
+                    cx, cy = int(lm.x * w), int(lm.y * h)
+                    pixel_points[i] = (cx, cy)
 
             # Draw connection lines (Skeleton)
             # Use cyan/blue lines with high aesthetic contrast
