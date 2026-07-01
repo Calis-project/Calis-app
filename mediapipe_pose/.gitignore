@@ -1,4 +1,6 @@
 .venv/
 *.task
-# data/output/*
-# !data/output/.gitkeep
+data/input/*
+!data/input/.gitkeep
+data/output/*
+!data/output/.gitkeep
