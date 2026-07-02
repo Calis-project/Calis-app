@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calis App - Gemini AI Pipeline Demo</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  :root {
+    color-scheme: dark;
+    --bg: #0e1012;
+    --surface: #15191d;
+    --surface-2: #101316;
+    --border: #29313a;
+    --text: #ecf2f2;
+    --muted: #9ba7ad;
+    --faint: #657179;
+    --green: #c8f135;
+    --violet: #8f7bff;
+    --orange: #ff8a4d;
+    --cyan: #3fd6c1;
+    --red: #ff5f7a;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 22px clamp(16px, 4vw, 34px) 18px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--green);
+    color: #080908;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 19px;
+    line-height: 1.15;
+    letter-spacing: 0;
+  }
+
+  .subtitle {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    padding: 14px clamp(16px, 4vw, 34px);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .tab {
+    min-height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 650;
+    padding: 0 14px;
+    white-space: nowrap;
+  }
+
+  .tab.active {
+    background: var(--green);
+    color: #080908;
+    border-color: var(--green);
+  }
+
+  main {
+    width: min(920px, 100%);
+    padding: 24px clamp(16px, 4vw, 34px) 40px;
+  }
+
+  .scenario {
+    display: grid;
+    gap: 16px;
+  }
+
+  .tag {
+    width: fit-content;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    color: var(--green);
+    font: 700 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+    padding: 4px 10px;
+    text-transform: uppercase;
+  }
+
+  .tag.orange {
+    color: var(--orange);
+  }
+
+  .tag.cyan {
+    color: var(--cyan);
+  }
+
+  .tag.red {
+    color: var(--red);
+  }
+
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 18px;
+  }
+
+  .section-label {
+    color: var(--faint);
+    font: 700 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+    letter-spacing: 0;
+    margin-bottom: 13px;
+    text-transform: uppercase;
+  }
+
+  .layer {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 12px;
+    align-items: start;
+    margin-top: 12px;
+  }
+
+  .layer:first-of-type {
+    margin-top: 0;
+  }
+
+  .badge {
+    border-radius: 7px;
+    min-height: 25px;
+    display: grid;
+    place-items: center;
+    color: var(--text);
+    border: 1px solid var(--border);
+    font: 800 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+
+  .badge.cv {
+    color: var(--violet);
+    border-color: color-mix(in srgb, var(--violet), transparent 45%);
+  }
+
+  .badge.vlm {
+    color: var(--green);
+    border-color: color-mix(in srgb, var(--green), transparent 45%);
+  }
+
+  .badge.llm {
+    color: var(--orange);
+    border-color: color-mix(in srgb, var(--orange), transparent 45%);
+  }
+
+  .layer p {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  .layer.dim {
+    opacity: 0.42;
+  }
+
+  .test {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-2);
+    padding: 18px;
+  }
+
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    min-height: 142px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    cursor: pointer;
+    padding: 20px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .dropzone:hover,
+  .dropzone.has-file {
+    border-color: var(--green);
+  }
+
+  .drop-title {
+    margin: 0;
+    color: var(--text);
+    font-weight: 750;
+  }
+
+  .drop-sub {
+    margin: 4px 0 0;
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
+
+  .frames {
+    display: none;
+    gap: 8px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .frames img {
+    width: 112px;
+    height: 72px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    flex: 0 0 auto;
+  }
+
+  .mock-data {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #0b0d0f;
+    padding: 12px;
+    margin-bottom: 14px;
+    display: grid;
+    gap: 7px;
+  }
+
+  .mock-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 170px) 1fr;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .mock-key {
+    color: var(--faint);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #0b0d0f;
+    color: var(--text);
+    font: inherit;
+    padding: 11px 12px;
+    margin-bottom: 14px;
+  }
+
+  textarea:focus {
+    outline: 2px solid color-mix(in srgb, var(--green), transparent 65%);
+    border-color: var(--green);
+  }
+
+  .action-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .button {
+    min-height: 38px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--green);
+    color: #080908;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    padding: 0 17px;
+  }
+
+  .button:disabled {
+    background: #32383d;
+    color: #737c84;
+    cursor: not-allowed;
+  }
+
+  .count {
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  .status {
+    display: none;
+    align-items: center;
+    gap: 9px;
+    color: var(--green);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+    margin-top: 14px;
+  }
+
+  .status.active {
+    display: flex;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 1s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.35;
+      transform: scale(0.75);
+    }
+  }
+
+  .output,
+  .error {
+    display: none;
+    margin-top: 14px;
+    border-radius: 8px;
+    padding: 14px;
+    white-space: pre-wrap;
+  }
+
+  .output {
+    border: 1px solid color-mix(in srgb, var(--green), transparent 70%);
+    border-left: 3px solid var(--green);
+    background: #10180d;
+    color: #e3e8df;
+  }
+
+  .output b {
+    color: var(--green);
+  }
+
+  .error {
+    border: 1px solid color-mix(in srgb, var(--red), transparent 60%);
+    border-left: 3px solid var(--red);
+    background: #1d0e11;
+    color: #ffbdc9;
+  }
+
+  @media (max-width: 620px) {
+    .mock-row {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+
+    .layer {
+      grid-template-columns: 42px 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="mark">C</div>
+      <div>
+        <h1>Calis App</h1>
+        <div class="subtitle">Gemini AI pipeline demo</div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Demo scenarios">
+    <button class="tab active" type="button" data-tab="form">Form Analysis</button>
+    <button class="tab" type="button" data-tab="narration">Coach Narration</button>
+    <button class="tab" type="button" data-tab="progression">Skill Progression</button>
+    <button class="tab" type="button" data-tab="qa">Coach Q&amp;A</button>
+  </nav>
+
+  <main>
+    <section class="scenario" id="tab-form">
+      <div class="tag">CV + VLM</div>
+      <div class="panel">
+        <div class="section-label">Pipeline</div>
+        <div class="layer">
+          <div class="badge cv">CV</div>
+          <p>In the production app, MediaPipe tracks movement continuously and chooses keyframes between reps.</p>
+        </div>
+        <div class="layer">
+          <div class="badge vlm">VLM</div>
+          <p>Gemini reads extracted frames and describes visible form quality, issues, and cues.</p>
+        </div>
+        <div class="layer dim">
+          <div class="badge llm">LLM</div>
+          <p>Extra language shaping can be added later, but the visual model is enough for this demo.</p>
+        </div>
+      </div>
+
+      <div class="test">
+        <div class="section-label">Upload Test</div>
+        <div class="dropzone" id="drop-zone" role="button" tabindex="0">
+          <div>
+            <p class="drop-title" id="drop-title">Choose or drop a short exercise video</p>
+            <p class="drop-sub" id="drop-sub">MP4, MOV, or WebM. Five frames will be extracted locally.</p>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="video/*" />
+        <div class="frames" id="frames-preview"></div>
+        <div class="action-row">
+          <button class="button" type="button" id="analyze-form">Analyze Form</button>
+          <span class="count" id="frame-count"></span>
+        </div>
+        <div class="status" id="status-form"><span class="dot"></span><span>Gemini is reading the frames</span></div>
+        <div class="output" id="out-form"></div>
+        <div class="error" id="err-form"></div>
+      </div>
+    </section>
+
+    <section class="scenario" id="tab-narration" hidden>
+      <div class="tag orange">CV to LLM</div>
+      <div class="panel">
+        <div class="section-label">Pipeline</div>
+        <div class="layer">
+          <div class="badge cv">CV</div>
+          <p>Pose tracking produces rep counts, form scores, joint angles, and fatigue signals.</p>
+        </div>
+        <div class="layer dim">
+          <div class="badge vlm">VLM</div>
+          <p>Images are not required when structured movement data already captures the issue.</p>
+        </div>
+        <div class="layer">
+          <div class="badge llm">LLM</div>
+          <p>Gemini turns the numbers into concise coaching language after a set.</p>
+        </div>
+      </div>
+
+      <div class="test">
+        <div class="section-label">Mock BlazePose Output</div>
+        <div class="mock-data">
+          <div class="mock-row"><span class="mock-key">exercise</span><span>Pull-ups</span></div>
+          <div class="mock-row"><span class="mock-key">reps</span><span>8</span></div>
+          <div class="mock-row"><span class="mock-key">formScores</span><span>[92, 89, 85, 80, 71, 63, 55, 48]</span></div>
+          <div class="mock-row"><span class="mock-key">avgElbowAngle</span><span>142 degrees</span></div>
+          <div class="mock-row"><span class="mock-key">hipDrop</span><span>detected in reps 6-8</span></div>
+        </div>
+        <button class="button" type="button" id="run-narration">Generate Coaching</button>
+        <div class="status" id="status-narration"><span class="dot"></span><span>Gemini is writing feedback</span></div>
+        <div class="output" id="out-narration"></div>
+        <div class="error" id="err-narration"></div>
+      </div>
+    </section>
+
+    <section class="scenario" id="tab-progression" hidden>
+      <div class="tag cyan">LLM only</div>
+      <div class="panel">
+        <div class="section-label">Pipeline</div>
+        <div class="layer">
+          <div class="badge cv">CV</div>
+          <p>Training history supplies the coach with strength benchmarks and form trends.</p>
+        </div>
+        <div class="layer dim">
+          <div class="badge vlm">VLM</div>
+          <p>Visual analysis is not needed for a planning-only progression task.</p>
+        </div>
+        <div class="layer">
+          <div class="badge llm">LLM</div>
+          <p>Gemini builds a short, personalized roadmap toward the user goal.</p>
+        </div>
+      </div>
+
+      <div class="test">
+        <div class="section-label">Mock User Profile</div>
+        <div class="mock-data">
+          <div class="mock-row"><span class="mock-key">goal</span><span>Muscle-up</span></div>
+          <div class="mock-row"><span class="mock-key">pullUps</span><span>10 clean reps</span></div>
+          <div class="mock-row"><span class="mock-key">dips</span><span>8 clean reps</span></div>
+          <div class="mock-row"><span class="mock-key">weakPoints</span><span>Transition phase, false grip</span></div>
+          <div class="mock-row"><span class="mock-key">frequency</span><span>4 sessions per week</span></div>
+        </div>
+        <button class="button" type="button" id="run-progression">Build Plan</button>
+        <div class="status" id="status-progression"><span class="dot"></span><span>Gemini is building the plan</span></div>
+        <div class="output" id="out-progression"></div>
+        <div class="error" id="err-progression"></div>
+      </div>
+    </section>
+
+    <section class="scenario" id="tab-qa" hidden>
+      <div class="tag red">LLM + context</div>
+      <div class="panel">
+        <div class="section-label">Pipeline</div>
+        <div class="layer">
+          <div class="badge cv">CV</div>
+          <p>The app profile stores recent weaknesses, goals, training frequency, and movement trends.</p>
+        </div>
+        <div class="layer dim">
+          <div class="badge vlm">VLM</div>
+          <p>Camera frames are optional unless the user asks about a specific movement clip.</p>
+        </div>
+        <div class="layer">
+          <div class="badge llm">LLM</div>
+          <p>Gemini answers as a coach with the user profile injected into the prompt.</p>
+        </div>
+      </div>
+
+      <div class="test">
+        <div class="section-label">Ask The Coach</div>
+        <textarea id="qa-input" placeholder="Example: Why does my pull-up form break down near the end of a set?"></textarea>
+        <button class="button" type="button" id="run-qa">Ask Coach</button>
+        <div class="status" id="status-qa"><span class="dot"></span><span>Gemini is thinking</span></div>
+        <div class="output" id="out-qa"></div>
+        <div class="error" id="err-qa"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const tabs = document.querySelectorAll(".tab");
+const sections = document.querySelectorAll(".scenario");
+const dropZone = document.getElementById("drop-zone");
+const fileInput = document.getElementById("file-input");
+const framesPreview = document.getElementById("frames-preview");
+const frameCount = document.getElementById("frame-count");
+let extractedFrames = [];
+
+tabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    tabs.forEach((item) => item.classList.remove("active"));
+    sections.forEach((section) => {
+      section.hidden = section.id !== `tab-${tab.dataset.tab}`;
+    });
+    tab.classList.add("active");
+  });
+});
+
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    fileInput.click();
+  }
+});
+
+dropZone.addEventListener("dragover", (event) => {
+  event.preventDefault();
+});
+
+dropZone.addEventListener("drop", (event) => {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file) {
+    processVideo(file);
+  }
+});
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) {
+    processVideo(fileInput.files[0]);
+  }
+});
+
+document.getElementById("analyze-form").addEventListener("click", runFormAnalysis);
+document.getElementById("run-narration").addEventListener("click", runNarration);
+document.getElementById("run-progression").addEventListener("click", runProgression);
+document.getElementById("run-qa").addEventListener("click", runQA);
+
+async function processVideo(file) {
+  if (!file.type.startsWith("video/")) {
+    showError("err-form", "Please choose a video file.");
+    return;
+  }
+
+  extractedFrames = [];
+  framesPreview.innerHTML = "";
+  framesPreview.style.display = "none";
+  frameCount.textContent = "";
+  document.getElementById("drop-title").textContent = "Extracting frames...";
+  document.getElementById("drop-sub").textContent = file.name;
+
+  try {
+    const frames = await extractFrames(file, 5);
+    extractedFrames = frames;
+    dropZone.classList.add("has-file");
+    document.getElementById("drop-title").textContent = file.name;
+    document.getElementById("drop-sub").textContent = `${frames.length} frames extracted and ready`;
+    frameCount.textContent = `${frames.length} frames`;
+
+    frames.forEach((base64) => {
+      const img = document.createElement("img");
+      img.alt = "Extracted exercise video frame";
+      img.src = `data:image/jpeg;base64,${base64}`;
+      framesPreview.appendChild(img);
+    });
+
+    framesPreview.style.display = "flex";
+  } catch (error) {
+    document.getElementById("drop-title").textContent = "Frame extraction failed";
+    document.getElementById("drop-sub").textContent = error.message;
+  }
+}
+
+function extractFrames(file, count) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    const frames = [];
+    let captured = 0;
+
+    video.preload = "auto";
+    video.muted = true;
+
+    video.onloadedmetadata = () => {
+      const scale = Math.min(1, 640 / video.videoWidth);
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+
+      const safeDuration = Number.isFinite(video.duration) ? video.duration : 1;
+      const lastTime = Math.max(0.05, safeDuration - 0.05);
+      const times = Array.from({ length: count }, (_, index) => {
+        if (count === 1) return Math.min(0.05, lastTime);
+        return Math.min(lastTime, Math.max(0.05, (safeDuration / (count - 1)) * index));
+      });
+
+      video.onseeked = () => {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(canvas.toDataURL("image/jpeg", 0.65).split(",")[1]);
+        captured += 1;
+
+        if (captured >= count) {
+          URL.revokeObjectURL(video.src);
+          resolve(frames);
+          return;
+        }
+
+        video.currentTime = times[captured];
+      };
+
+      video.currentTime = times[captured];
+    };
+
+    video.onerror = () => reject(new Error("The browser could not read this video."));
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+async function callAI(messages, statusId, outputId, errorId) {
+  const status = document.getElementById(statusId);
+  const output = document.getElementById(outputId);
+  const error = document.getElementById(errorId);
+
+  status.classList.add("active");
+  output.style.display = "none";
+  error.style.display = "none";
+
+  try {
+    const response = await fetch("/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error || `Request failed with HTTP ${response.status}`);
+    }
+
+    const text = (data.content || []).map((part) => part.text || "").join("");
+    output.innerHTML = escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+    output.style.display = "block";
+  } catch (err) {
+    showError(errorId, err.message);
+  } finally {
+    status.classList.remove("active");
+  }
+}
+
+function showError(errorId, message) {
+  const error = document.getElementById(errorId);
+  error.textContent = `Error: ${message}`;
+  error.style.display = "block";
+}
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function runFormAnalysis() {
+  if (!extractedFrames.length) {
+    showError("err-form", "Upload a video first so the demo has frames to analyze.");
+    return;
+  }
+
+  const content = [
+    ...extractedFrames.map((base64) => ({
+      type: "image",
+      source: { type: "base64", media_type: "image/jpeg", data: base64 },
+    })),
+    {
+      type: "text",
+      text: `You are an expert calisthenics coach. You are looking at ${extractedFrames.length} frames extracted evenly from a short exercise video in chronological order.
+
+Analyze the user's form and respond in this exact format:
+
+**Exercise Detected:** [name it]
+
+**Movement across the frames:**
+[1-2 sentences describing the sequence]
+
+**What's working well:**
+- [specific positive]
+- [specific positive]
+
+**Key issues to fix:**
+- [specific issue]
+- [specific issue]
+
+**One cue for your next set:**
+[single plain-language cue]`,
+    },
+  ];
+
+  await callAI([{ role: "user", content }], "status-form", "out-form", "err-form");
+}
+
+async function runNarration() {
+  const prompt = `You are a warm but direct calisthenics coach giving post-set feedback.
+
+Exercise: Pull-ups
+Reps: 8
+Form scores per rep: [92, 89, 85, 80, 71, 63, 55, 48]
+Average elbow angle: 142 degrees
+Hip drop: reps 6-8
+Fatigue: high
+
+Write 3-4 sentences of natural coaching. Talk directly as "you". Be specific about the numbers. End with one tip for the next set.`;
+
+  await callAI([{ role: "user", content: prompt }], "status-narration", "out-narration", "err-narration");
+}
+
+async function runProgression() {
+  const prompt = `You are a calisthenics skill progression expert.
+
+Goal: Muscle-up
+Pull-ups: 10 clean reps
+Dips: 8 clean reps
+Weak points: transition phase and false grip
+Training: 4 sessions per week
+Tracked: 6 weeks
+
+Format:
+**Where you are now:** [1 sentence]
+**What's blocking your muscle-up:** [2 blockers]
+**Your 4-week plan:**
+Week 1-2: [focus plus 2 exercises with sets/reps]
+Week 3-4: [focus plus 2 exercises with sets/reps]
+**The thing most people get wrong:** [1 insight]`;
+
+  await callAI([{ role: "user", content: prompt }], "status-progression", "out-progression", "err-progression");
+}
+
+async function runQA() {
+  const question = document.getElementById("qa-input").value.trim();
+  if (!question) {
+    showError("err-qa", "Type a question first.");
+    return;
+  }
+
+  const prompt = `You are a calisthenics coach inside a fitness app.
+
+User profile:
+- 4 sessions per week, 6 weeks tracked
+- Pull-ups: 10 best
+- Dips: 8 best
+- Push-ups: 20 best
+- Weaknesses: hip stability and wrist flexibility
+- Goal: muscle-up in 3 months
+- Recent issue: form breakdown in final pull-up reps
+
+User asks: "${question}"
+
+Answer like a coach who knows them. Use 3-5 sentences. Natural speech, no bullet lists.`;
+
+  await callAI([{ role: "user", content: prompt }], "status-qa", "out-qa", "err-qa");
+}
+</script>
+</body>
+</html>
