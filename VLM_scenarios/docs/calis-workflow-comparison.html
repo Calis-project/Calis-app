@@ -1,0 +1,698 @@
+<title>CV + VLM Workflow Lab — Calis AI</title>
+<style>
+  :root {
+    --paper: #eef1f6;
+    --card: #ffffff;
+    --card-2: #f6f8fb;
+    --ink: #111722;
+    --muted: #596473;
+    --faint: #8a94a3;
+    --line: #dde3ec;
+    --line-strong: #c8d1de;
+    --cv: #2f6fed;      /* on-device / MediaPipe */
+    --vlm: #7c5cff;     /* cloud / Gemini */
+    --accent: #7c5cff;
+    --pass: #0f9d58;
+    --pass-bg: #e4f5ec;
+    --tight: #b7830a;
+    --tight-bg: #fbf1d9;
+    --fail: #d93a41;
+    --fail-bg: #fbe6e7;
+    --shadow: 0 1px 2px rgba(17,23,34,.06), 0 8px 24px rgba(17,23,34,.05);
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", "Consolas", "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0b0e14; --card: #131925; --card-2: #0f141d;
+      --ink: #e7ecf4; --muted: #97a2b3; --faint: #6b7686;
+      --line: #212a38; --line-strong: #2c3648;
+      --cv: #5f92f4; --vlm: #a08bff; --accent: #a08bff;
+      --pass: #3fbf7f; --pass-bg: #12281e;
+      --tight: #e2ad3e; --tight-bg: #2a2412;
+      --fail: #ff5f66; --fail-bg: #2c1517;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #eef1f6; --card: #ffffff; --card-2: #f6f8fb;
+    --ink: #111722; --muted: #596473; --faint: #8a94a3;
+    --line: #dde3ec; --line-strong: #c8d1de;
+    --cv: #2f6fed; --vlm: #7c5cff; --accent: #7c5cff;
+    --pass: #0f9d58; --pass-bg: #e4f5ec;
+    --tight: #b7830a; --tight-bg: #fbf1d9;
+    --fail: #d93a41; --fail-bg: #fbe6e7;
+    --shadow: 0 1px 2px rgba(17,23,34,.06), 0 8px 24px rgba(17,23,34,.05);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0b0e14; --card: #131925; --card-2: #0f141d;
+    --ink: #e7ecf4; --muted: #97a2b3; --faint: #6b7686;
+    --line: #212a38; --line-strong: #2c3648;
+    --cv: #5f92f4; --vlm: #a08bff; --accent: #a08bff;
+    --pass: #3fbf7f; --pass-bg: #12281e;
+    --tight: #e2ad3e; --tight-bg: #2a2412;
+    --fail: #ff5f66; --fail-bg: #2c1517;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
+
+  /* ---- header ---- */
+  .masthead { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--vlm); font-weight: 600;
+  }
+  h1 { font-size: clamp(26px, 4.2vw, 40px); line-height: 1.05; margin: 8px 0 0; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+  .lede { color: var(--muted); max-width: 56ch; margin: 12px 0 0; font-size: 15.5px; }
+  .themebtn {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 13px; cursor: pointer;
+  }
+  .themebtn:hover { border-color: var(--line-strong); color: var(--ink); }
+
+  .constraint {
+    margin-top: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--vlm);
+    border-radius: 12px; padding: 14px 18px; box-shadow: var(--shadow);
+  }
+  .constraint .big { font-family: var(--mono); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .constraint .lbl { font-size: 13.5px; color: var(--muted); }
+  .constraint b { color: var(--ink); }
+
+  /* ---- section scaffolding ---- */
+  section { margin-top: 40px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 20px; }
+  .sec-head h2 { font-size: 19px; margin: 0; font-weight: 750; letter-spacing: -.01em; }
+  .sec-head .n { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .sec-head p { margin: 0 0 0 auto; color: var(--muted); font-size: 13px; text-align: right; max-width: 40ch; }
+
+  /* ---- calculator ---- */
+  .calc { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+  .controls { position: sticky; top: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 18px 18px; box-shadow: var(--shadow); }
+  .cgroup { padding: 16px 0; border-bottom: 1px dashed var(--line); }
+  .cgroup:last-child { border-bottom: 0; padding-bottom: 4px; }
+  .cgroup > .gh { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 12px; }
+  .ctrl { margin-bottom: 14px; }
+  .ctrl:last-child { margin-bottom: 0; }
+  .ctrl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+  .ctrl label { font-size: 13px; color: var(--muted); }
+  .ctrl .val { font-family: var(--mono); font-size: 13.5px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 4px; background: var(--line-strong); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--accent); }
+  input[type=range]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--card); }
+  input[type=range]:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+  select { width: 100%; font-family: var(--sans); font-size: 13px; color: var(--ink); background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; cursor: pointer; }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seg { display: flex; gap: 4px; background: var(--card-2); border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+  .seg button { flex: 1; font-family: var(--mono); font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 6px 4px; border-radius: 6px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+
+  .tally { margin-top: 4px; font-size: 13px; color: var(--muted); }
+  .tally b { font-family: var(--mono); color: var(--ink); }
+
+  /* ---- workflow cards ---- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; }
+  .card.dim { opacity: .62; }
+  .card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card h3 { font-size: 14.5px; margin: 0; font-weight: 700; letter-spacing: -.01em; }
+  .card .kind { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-top: 3px; }
+  .dots { display: flex; gap: 4px; margin-top: 2px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.cv { background: var(--cv); } .dot.vlm { background: var(--vlm); }
+
+  .fit { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 4px 9px; border-radius: 999px; white-space: nowrap; text-transform: uppercase; }
+  .fit.pass { color: var(--pass); background: var(--pass-bg); }
+  .fit.tight { color: var(--tight); background: var(--tight-bg); }
+  .fit.fail { color: var(--fail); background: var(--fail-bg); }
+  .fit.none { color: var(--cv); background: color-mix(in srgb, var(--cv) 12%, transparent); }
+
+  .meter { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 4px; }
+  .meter i.pass { background: var(--pass); } .meter i.tight { background: var(--tight); } .meter i.fail { background: var(--fail); } .meter i.none { background: var(--cv); }
+  .metercap { font-size: 11.5px; color: var(--muted); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; }
+  .stat .k { font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+  .stat .v { font-family: var(--mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .stat .v small { font-size: 11px; font-weight: 500; color: var(--muted); }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.45; border-top: 1px solid var(--line); padding-top: 10px; }
+
+  /* ---- matrix ---- */
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 780px; font-size: 13px; background: var(--card); }
+  th, td { text-align: left; padding: 11px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { position: sticky; top: 0; background: var(--card-2); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.name { font-weight: 650; }
+  td .mono, td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--line); color: var(--muted); }
+  .rate { font-weight: 700; }
+  .rate.hi { color: var(--pass); } .rate.mid { color: var(--tight); } .rate.lo { color: var(--fail); } .rate.na { color: var(--faint); }
+
+  /* ---- diagrams ---- */
+  .diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .dcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+  .dcard h3 { margin: 0 0 3px; font-size: 15px; font-weight: 700; }
+  .dcard .sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-family: var(--mono); }
+  .dcard svg { width: 100%; height: auto; display: block; }
+  .flabel { font-family: var(--sans); font-size: 12px; font-weight: 600; }
+  .fsub { font-family: var(--mono); font-size: 9.5px; }
+
+  /* ---- recommendation ---- */
+  .rec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px; box-shadow: var(--shadow); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .rec .lead { grid-column: 1 / -1; }
+  .rec h3 { margin: 0 0 6px; font-size: 17px; }
+  .rec p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+  .rec .pick { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2); }
+  .rec .pick .badge { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 7px; white-space: nowrap; }
+  .rec .pick .badge.free { color: var(--pass); background: var(--pass-bg); }
+  .rec .pick .badge.paid { color: var(--vlm); background: color-mix(in srgb, var(--vlm) 14%, transparent); }
+  .rec .pick h4 { margin: 0 0 3px; font-size: 14px; }
+  .rec .pick p { margin: 0; font-size: 12.5px; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 14px; align-items: center; }
+  .legend .k { display: inline-flex; align-items: center; gap: 6px; }
+
+  footer { margin-top: 46px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--faint); }
+  footer a { color: var(--muted); }
+  footer .warn { color: var(--tight); }
+
+  @media (max-width: 860px) {
+    .calc { grid-template-columns: 1fr; }
+    .controls { position: static; }
+    .rec { grid-template-columns: 1fr; }
+    .sec-head p { display: none; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .card, .meter i { transition: opacity .2s ease; }
+    .meter i { transition: width .35s cubic-bezier(.4,0,.2,1); }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Calis AI · Architecture Lab</div>
+      <h1>BlazePose + Gemini:<br>which workflow survives the free tier?</h1>
+      <p class="lede">Every way of combining on-device pose tracking (CV) with a cloud VLM has a different price in latency, tokens, and — the one that actually bites at MVP — shared daily Gemini calls. Drive the model and watch each design pass or blow the budget.</p>
+    </div>
+    <button class="themebtn" id="theme" type="button">◐ theme</button>
+  </header>
+
+  <div class="constraint">
+    <div class="big" id="rpdBig">1,500</div>
+    <div class="lbl"><b>Gemini free-tier calls per day</b> — and it's <b>per project, not per user</b>. Every user of your MVP draws from this <em>one</em> shared bucket (Gemini&nbsp;3 Flash: 10&nbsp;RPM · 250K&nbsp;TPM · 1,500&nbsp;RPD). That single fact decides most of the design.</div>
+  </div>
+
+  <!-- ============ CALCULATOR ============ -->
+  <section id="calc">
+    <div class="sec-head">
+      <span class="n">01</span><h2>Interactive cost &amp; capacity model</h2>
+      <p>Adjust your assumptions on the left. Cards recompute live.</p>
+    </div>
+
+    <div class="calc">
+      <form class="controls" id="controls" aria-label="Model inputs">
+        <div class="cgroup">
+          <div class="gh">Audience</div>
+          <div class="ctrl">
+            <div class="row"><label for="users">Active users</label><span class="val" id="users_v"></span></div>
+            <input type="range" id="users" min="0" max="1000" value="300" step="1">
+          </div>
+          <div class="ctrl">
+            <div class="row"><label for="spd">Sessions / user / day</label><span class="val" id="spd_v"></span></div>
+            <input type="range" id="spd" min="25" max="300" value="100" step="25">
+          </div>
+        </div>
+
+        <div class="cgroup">
+          <div class="gh">A workout</div>
+          <div class="ctrl">
+            <div class="row"><label for="sets">Sets / session</label><span class="val" id="sets_v"></span></div>
+            <input type="range" id="sets" min="1" max="20" value="10" step="1">
+          </div>
+          <div class="ctrl">
+            <div class="row"><label for="reps">Reps / set</label><span class="val" id="reps_v"></span></div>
+            <input type="range" id="reps" min="3" max="20" value="10" step="1">
+          </div>
+          <div class="ctrl">
+            <div class="row"><label for="mins">Minutes / session</label><span class="val" id="mins_v"></span></div>
+            <input type="range" id="mins" min="5" max="60" value="20" step="1">
+          </div>
+        </div>
+
+        <div class="cgroup">
+          <div class="gh">Call settings</div>
+          <div class="ctrl">
+            <div class="row"><label for="frames">Frames / call</label><span class="val" id="frames_v"></span></div>
+            <input type="range" id="frames" min="1" max="5" value="2" step="1">
+          </div>
+          <div class="ctrl">
+            <div class="row"><label>Frame resolution</label><span class="val" id="res_v"></span></div>
+            <div class="seg" id="res" role="group" aria-label="Frame resolution">
+              <button type="button" data-v="low">384px</button>
+              <button type="button" data-v="bal" aria-pressed="true">512px</button>
+              <button type="button" data-v="high">768px</button>
+            </div>
+          </div>
+          <div class="ctrl">
+            <div class="row"><label for="model">Gemini model</label></div>
+            <select id="model">
+              <option value="flash" selected>Gemini 3 Flash — 1,500 RPD</option>
+              <option value="lite">Gemini 3.1 Flash-Lite — cheaper</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="cgroup">
+          <div class="gh">Trigger rates</div>
+          <div class="ctrl">
+            <div class="row"><label for="interval">Auto-snapshot every</label><span class="val" id="interval_v"></span></div>
+            <input type="range" id="interval" min="5" max="60" value="15" step="1">
+          </div>
+          <div class="ctrl">
+            <div class="row"><label for="fdrop">Sets with a form drop</label><span class="val" id="fdrop_v"></span></div>
+            <input type="range" id="fdrop" min="0" max="100" value="40" step="5">
+          </div>
+          <div class="ctrl">
+            <div class="row"><label for="gate">Sets tripping the CV gate</label><span class="val" id="gate_v"></span></div>
+            <input type="range" id="gate" min="0" max="100" value="30" step="5">
+          </div>
+        </div>
+      </form>
+
+      <div>
+        <div class="tally" id="tally"></div>
+        <div class="cards" id="cards" style="margin-top:12px"></div>
+        <div class="legend">
+          <span class="k"><span class="dot cv" style="width:10px;height:10px;border-radius:50%;display:inline-block"></span> CV · on-device (MediaPipe)</span>
+          <span class="k"><span class="dot vlm" style="width:10px;height:10px;border-radius:50%;display:inline-block"></span> VLM · cloud (Gemini)</span>
+          <span class="k"><span class="fit pass" style="padding:2px 7px">fits</span> ≤66% of budget</span>
+          <span class="k"><span class="fit tight" style="padding:2px 7px">tight</span> 66–100%</span>
+          <span class="k"><span class="fit fail" style="padding:2px 7px">exceeds</span> over budget</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MATRIX ============ -->
+  <section id="matrix">
+    <div class="sec-head">
+      <span class="n">02</span><h2>Side-by-side reference</h2>
+      <p>The trade columns don't move with the sliders — they're the character of each design.</p>
+    </div>
+    <div class="scroll">
+      <table id="matrix_t">
+        <thead><tr>
+          <th>Workflow</th><th>Type</th><th>Perceived latency</th><th>Calls / set</th>
+          <th>Rep accuracy</th><th>Form insight</th><th>Privacy</th><th>Best for</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ DIAGRAMS ============ -->
+  <section id="flows">
+    <div class="sec-head">
+      <span class="n">03</span><h2>How four of them actually wire up</h2>
+      <p>Where CV merely adds text vs. where CV changes what the VLM sees.</p>
+    </div>
+    <div class="diagrams" id="diagrams"></div>
+  </section>
+
+  <!-- ============ RECOMMENDATION ============ -->
+  <section id="rec">
+    <div class="sec-head"><span class="n">04</span><h2>What I'd ship</h2></div>
+    <div class="rec">
+      <div class="lead">
+        <h3>Let CV spend the VLM's budget, not the clock.</h3>
+        <p>The failure mode isn't latency or token price — it's that <b>every user shares one 1,500-call/day bucket</b>. Any workflow whose call count scales with <em>time</em> (auto-snapshot) or with <em>every set</em> (naïve set-end) caps your free MVP at a handful of real users. The winning moves make CV decide <em>when</em> a cloud call is worth it and <em>which</em> frames it carries.</p>
+      </div>
+      <div class="pick">
+        <span class="badge free">FREE MVP</span>
+        <div>
+          <h4>Default: CV-gated Hybrid</h4>
+          <p>CV counts every rep and scores form for free; Gemini fires only on the sets where form actually breaks (or reps get ambiguous). Same coaching value, a fraction of the calls — this is the design that keeps the most users inside the free tier.</p>
+        </div>
+      </div>
+      <div class="pick">
+        <span class="badge free">FREE MVP</span>
+        <div>
+          <h4>Cheapest tier: Batched end-of-workout</h4>
+          <p>One call per session reviewing all sets with a keyframe each. Loses live nudges, but a single-user tester could train for weeks without touching the cap. Offer it as the "lite" plan.</p>
+        </div>
+      </div>
+      <div class="pick">
+        <span class="badge paid">GO PAID</span>
+        <div>
+          <h4>Per-set + CV-guided keyframes</h4>
+          <p>When you have paid quota, drop the gate and send rep-peak / worst-rep frames every set. CV-guided keyframes are where hybrid genuinely beats frames-only — CV improves the <em>input</em>, not just the prose.</p>
+        </div>
+      </div>
+      <div class="pick">
+        <span class="badge paid">LATER</span>
+        <div>
+          <h4>Reverse hybrid (auto-calibration)</h4>
+          <p>Post-set, let the VLM sanity-check CV's rep count/depth and nudge your per-user thresholds within caps. A few calls per calibration, never live — a v2 accuracy play, not an MVP cost concern.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Model &amp; pricing notes.</b> Free-tier limits per Google AI for Developers (2026): Gemini&nbsp;3 Flash — 10&nbsp;RPM, 250K&nbsp;TPM, 1,500&nbsp;RPD; Gemini&nbsp;3.1 Flash-Lite — 15&nbsp;RPM. Limits are <b>per project</b> and reset midnight Pacific. <span class="warn">Paid $/1M-token prices here are approximate placeholders — verify against current Gemini pricing before quoting them.</span> Image-token estimates assume ~258 tokens per 768px tile. This is a planning model, not a billing oracle.</p>
+    <p style="margin-top:8px">Sources: <a href="https://ai.google.dev/gemini-api/docs/rate-limits">ai.google.dev/gemini-api/docs/rate-limits</a></p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- constants ----------
+  var RES = { low: { px: 384, tok: 258 }, bal: { px: 512, tok: 516 }, high: { px: 768, tok: 774 } };
+  var MODELS = {
+    flash: { label: "Gemini 3 Flash", inP: 0.30, outP: 2.50, rpd: 1500, rpm: 10 },
+    lite:  { label: "Gemini 3.1 Flash-Lite", inP: 0.10, outP: 0.40, rpd: 1500, rpm: 15 }
+  };
+  var BATCH_MAX = 4;
+  var TEXT_TOK = 250;   // prompt + CV summary
+  var OUT_TOK = 220;    // coaching reply
+  var VIDEO_TOK_PER_SEC = 258;
+  var SEC_PER_REP = 3;
+
+  // ---------- workflow definitions ----------
+  // calls(c) -> Gemini calls per SESSION ; tokens(c) -> {inp, out}
+  var WF = [
+    { id: "cv", name: "CV-only (on-device)", kind: "baseline", eng: ["cv"],
+      calls: function () { return 0; },
+      tokens: function () { return { inp: 0, out: 0 }; },
+      lat: "Instant", latClass: "hi", perSet: "0",
+      acc: ["High", "hi"], insight: ["None", "lo"], priv: ["On-device", "hi"],
+      best: "Rep counting & live numbers with zero cost or network.",
+      note: "Never calls the cloud. Perfect reps, but it can't 'see' form the way a coach does." },
+
+    { id: "snap", name: "VLM snapshot (manual)", kind: "baseline", eng: ["vlm"],
+      calls: function (c) { return c.sets; },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK, out: OUT_TOK }; },
+      lat: "2–4 s", latClass: "mid", perSet: "~1",
+      acc: ["n/a", "na"], insight: ["Good", "mid"], priv: ["Cloud", "lo"],
+      best: "Occasional 'how's my form?' checks a user taps themselves.",
+      note: "One call per set assumed. No CV, so no rep counts — just a visual read." },
+
+    { id: "auto", name: "VLM auto-snapshot", kind: "baseline", eng: ["vlm"],
+      calls: function (c) { return Math.round((c.mins * 60) / c.interval); },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK, out: OUT_TOK }; },
+      lat: "2–4 s", latClass: "mid", perSet: "many",
+      acc: ["n/a", "na"], insight: ["Good", "mid"], priv: ["Cloud", "lo"],
+      best: "Demos only — it burns the budget fastest of anything here.",
+      note: "Calls scale with the CLOCK, not effort. The free-tier killer." },
+
+    { id: "video", name: "VLM full-video upload", kind: "baseline", eng: ["vlm"],
+      calls: function (c) { return c.sets; },
+      tokens: function (c) {
+        var clip = c.reps * SEC_PER_REP;
+        return { inp: Math.round(clip * VIDEO_TOK_PER_SEC) + TEXT_TOK, out: OUT_TOK + 40 };
+      },
+      lat: "4–8 s", latClass: "lo", perSet: "~1",
+      acc: ["n/a", "na"], insight: ["Best", "hi"], priv: ["Cloud", "lo"],
+      best: "Post-set deep review with timestamped fault callouts.",
+      note: "Heaviest tokens per call — video is billed by the second." },
+
+    { id: "hset", name: "Hybrid — set-end", kind: "hybrid", eng: ["cv", "vlm"],
+      calls: function (c) { return c.sets; },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK + 40, out: OUT_TOK }; },
+      lat: "Instant + 2–4 s", latClass: "hi", perSet: "1",
+      acc: ["High", "hi"], insight: ["Good", "mid"], priv: ["Hybrid", "mid"],
+      best: "Live reps plus a coaching note after every set.",
+      note: "The obvious hybrid — but one call/set still adds up across users." },
+
+    { id: "hdrop", name: "Hybrid — form-drop", kind: "hybrid", eng: ["cv", "vlm"],
+      calls: function (c) { return c.sets * c.fdrop; },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK + 40, out: OUT_TOK }; },
+      lat: "Instant + 2–4 s", latClass: "hi", perSet: "≤1",
+      acc: ["High", "hi"], insight: ["Targeted", "mid"], priv: ["Hybrid", "mid"],
+      best: "Only speak up when a set degrades — max once per set.",
+      note: "Cheaper than set-end whenever most sets are clean." },
+
+    { id: "hkey", name: "Hybrid — CV-guided keyframes", kind: "hybrid", eng: ["cv", "vlm"],
+      calls: function (c) { return c.sets; },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK + 40, out: OUT_TOK }; },
+      lat: "Instant + 2–4 s", latClass: "hi", perSet: "1",
+      acc: ["High", "hi"], insight: ["Best", "hi"], priv: ["Hybrid", "mid"],
+      best: "When you want hybrid to actually beat frames-only.",
+      note: "Same call count as set-end, but CV picks the rep-peak / worst-rep frames — better input, not just extra text." },
+
+    { id: "hgate", name: "Hybrid — CV-gated VLM", kind: "hybrid", eng: ["cv", "vlm"],
+      calls: function (c) { return c.sets * c.gate; },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK + 40, out: OUT_TOK }; },
+      lat: "Instant + 2–4 s", latClass: "hi", perSet: "gated",
+      acc: ["High", "hi"], insight: ["Targeted", "hi"], priv: ["Hybrid", "mid"],
+      best: "The free-tier default — CV decides when a call earns its cost.",
+      note: "CV runs every rep free; VLM fires only on flagged sets. Best coaching-per-call ratio." },
+
+    { id: "hbatch", name: "Hybrid — batched end-of-workout", kind: "hybrid", eng: ["cv", "vlm"],
+      calls: function () { return 1; },
+      tokens: function (c) {
+        var f = Math.min(c.sets, BATCH_MAX);
+        return { inp: f * c.res.tok + TEXT_TOK + 40 * c.sets, out: OUT_TOK + 100 };
+      },
+      lat: "2–4 s (once)", latClass: "mid", perSet: "0",
+      acc: ["High", "hi"], insight: ["Summary", "mid"], priv: ["Hybrid", "mid"],
+      best: "Cheapest coaching tier — one call reviews the whole session.",
+      note: "One call per session, a keyframe per set. Loses live nudges." },
+
+    { id: "rev", name: "Reverse hybrid (auto-calibrate)", kind: "future", eng: ["cv", "vlm"],
+      calls: function () { return 0.25; },
+      tokens: function (c) { return { inp: c.frames * c.res.tok + TEXT_TOK, out: OUT_TOK }; },
+      lat: "Post-set", latClass: "mid", perSet: "rare",
+      acc: ["Improves CV", "hi"], insight: ["Calibration", "mid"], priv: ["Hybrid", "mid"],
+      best: "v2 accuracy: VLM nudges per-user CV thresholds.",
+      note: "Runs occasionally between sessions, never live. Not an MVP cost item." }
+  ];
+
+  // ---------- read inputs ----------
+  var resSel = "bal";
+  function cfg() {
+    var m = MODELS[$("model").value];
+    return {
+      users: +$("users").value === 0 ? 1 : Math.round(logUsers(+$("users").value)),
+      spd: +$("spd").value / 100,
+      sets: +$("sets").value,
+      reps: +$("reps").value,
+      mins: +$("mins").value,
+      frames: +$("frames").value,
+      res: RES[resSel],
+      interval: +$("interval").value,
+      fdrop: +$("fdrop").value / 100,
+      gate: +$("gate").value / 100,
+      model: m
+    };
+  }
+  // map slider 0..1000 -> 1..100000 logarithmically
+  function logUsers(t) { return Math.pow(10, (t / 1000) * 5); }
+
+  // ---------- formatting ----------
+  function fInt(n) {
+    if (n >= 100000) return (n / 1000).toFixed(0) + "k";
+    return Math.round(n).toLocaleString("en-US");
+  }
+  function fCalls(n) {
+    if (n === 0) return "0";
+    if (n < 1) return n.toFixed(2);
+    if (n < 10) return n.toFixed(1).replace(/\.0$/, "");
+    return Math.round(n).toLocaleString("en-US");
+  }
+  function fUSD(n) {
+    if (n === 0) return "$0";
+    if (n < 0.01) return "$" + n.toFixed(4);
+    if (n < 10) return "$" + n.toFixed(2);
+    if (n < 1000) return "$" + n.toFixed(0);
+    return "$" + (n / 1000).toFixed(1) + "k";
+  }
+  function fTok(n) { return n >= 1000 ? (n / 1000).toFixed(1) + "k" : Math.round(n) + ""; }
+
+  // ---------- compute one workflow ----------
+  function compute(w, c) {
+    var callsSession = w.calls(c);
+    var tk = w.tokens(c);
+    var costCall = (tk.inp / 1e6) * c.model.inP + (tk.out / 1e6) * c.model.outP;
+    var callsDay = c.users * c.spd * callsSession;
+    var rpd = c.model.rpd;
+    var ratio = callsSession === 0 ? 0 : callsDay / rpd;
+    var fit = callsSession === 0 ? "none" : ratio > 1 ? "fail" : ratio > 0.66 ? "tight" : "pass";
+    var maxUsers = callsSession === 0 ? Infinity : Math.floor(rpd / (c.spd * callsSession));
+    var perSessionCost = callsSession * costCall;
+    var monthly1k = 1000 * c.spd * 30 * perSessionCost;
+    return {
+      callsSession: callsSession, callsDay: callsDay, tokCall: tk.inp + tk.out,
+      costCall: costCall, perSessionCost: perSessionCost, monthly1k: monthly1k,
+      ratio: ratio, fit: fit, maxUsers: maxUsers
+    };
+  }
+
+  // ---------- render cards ----------
+  function render() {
+    var c = cfg();
+    // labels
+    $("users_v").textContent = fInt(c.users);
+    $("spd_v").textContent = c.spd.toFixed(2).replace(/0$/, "");
+    $("sets_v").textContent = c.sets;
+    $("reps_v").textContent = c.reps;
+    $("mins_v").textContent = c.mins + " min";
+    $("frames_v").textContent = c.frames;
+    $("res_v").textContent = "~" + c.res.tok + " tok/img";
+    $("interval_v").textContent = c.interval + " s";
+    $("fdrop_v").textContent = Math.round(c.fdrop * 100) + "%";
+    $("gate_v").textContent = Math.round(c.gate * 100) + "%";
+    $("rpdBig").textContent = c.model.rpd.toLocaleString("en-US");
+
+    var rows = WF.map(function (w) { return { w: w, r: compute(w, c) }; });
+    // sort: fits first (none/pass/tight/fail), then by calls/day ascending
+    var order = { none: 0, pass: 1, tight: 2, fail: 3 };
+    rows.sort(function (a, b) {
+      if (order[a.r.fit] !== order[b.r.fit]) return order[a.r.fit] - order[b.r.fit];
+      return a.r.callsDay - b.r.callsDay;
+    });
+
+    var okCount = rows.filter(function (x) { return x.r.fit === "pass" || x.r.fit === "none"; }).length;
+    $("tally").innerHTML = "At <b>" + fInt(c.users) + "</b> users × <b>" + c.spd.toFixed(2).replace(/0$/, "") +
+      "</b> sessions/day, <b>" + okCount + " of " + WF.length + "</b> workflows sit comfortably inside the free tier &nbsp;·&nbsp; budget = <b>" +
+      c.model.rpd.toLocaleString("en-US") + "</b> calls/day.";
+
+    var html = rows.map(function (x) {
+      var w = x.w, r = x.r;
+      var dots = w.eng.map(function (e) { return '<span class="dot ' + e + '"></span>'; }).join("");
+      var fitTxt = r.fit === "none" ? "no cloud" : r.fit === "pass" ? "fits" : r.fit === "tight" ? "tight" : "exceeds";
+      var barW = r.fit === "none" ? 100 : Math.max(3, Math.min(100, r.ratio * 100));
+      var cap = r.fit === "none" ? "0 cloud calls — ∞ users"
+        : fCalls(r.callsDay) + " calls/day · " + Math.round(r.ratio * 100) + "% of budget";
+      var maxU = r.maxUsers === Infinity ? "∞" : fInt(r.maxUsers);
+      return '<div class="card ' + (r.fit === "fail" ? "dim" : "") + '">' +
+        '<div class="top"><div><h3>' + w.name + '</h3><div class="kind">' + w.kind +
+        '</div><div class="dots">' + dots + '</div></div>' +
+        '<span class="fit ' + r.fit + '">' + fitTxt + '</span></div>' +
+        '<div><div class="meter"><i class="' + r.fit + '" style="width:' + barW + '%"></i></div>' +
+        '<div class="metercap" style="margin-top:6px">' + cap + '</div></div>' +
+        '<div class="stats">' +
+          stat("Calls / session", fCalls(r.callsSession)) +
+          stat("Max free users", maxU) +
+          stat("Tokens / call", fTok(r.tokCall)) +
+          stat("Cost / session", fUSD(r.perSessionCost)) +
+          stat("Latency", "<small>" + w.lat + "</small>") +
+          stat("Paid: 1k users·mo", fUSD(r.monthly1k)) +
+        '</div>' +
+        '<div class="note">' + w.note + '</div>' +
+      '</div>';
+    }).join("");
+    $("cards").innerHTML = html;
+  }
+  function stat(k, v) {
+    return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+  }
+
+  // ---------- static matrix ----------
+  function buildMatrix() {
+    var tb = $("matrix_t").querySelector("tbody");
+    tb.innerHTML = WF.map(function (w) {
+      return "<tr>" +
+        '<td class="name">' + w.name + '</td>' +
+        '<td><span class="tag">' + w.kind + "</span></td>" +
+        '<td class="num"><span class="rate ' + w.latClass + '">' + w.lat + "</span></td>" +
+        '<td class="num">' + w.perSet + "</td>" +
+        cell(w.acc) + cell(w.insight) + cell(w.priv) +
+        "<td>" + w.best + "</td>" +
+      "</tr>";
+    }).join("");
+  }
+  function cell(pair) { return '<td><span class="rate ' + pair[1] + '">' + pair[0] + "</span></td>"; }
+
+  // ---------- diagrams ----------
+  function buildDiagrams() {
+    var C = { cv: "var(--cv)", vlm: "var(--vlm)", line: "var(--line-strong)", ink: "var(--ink)", muted: "var(--muted)", card: "var(--card-2)" };
+    function node(x, y, w, label, sub, color) {
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="40" rx="9" fill="var(--card-2)" stroke="' + color + '" stroke-width="1.5"/>' +
+        '<text x="' + (x + w / 2) + '" y="' + (y + 17) + '" text-anchor="middle" class="flabel" fill="var(--ink)">' + label + '</text>' +
+        '<text x="' + (x + w / 2) + '" y="' + (y + 31) + '" text-anchor="middle" class="fsub" fill="' + color + '">' + sub + '</text>';
+    }
+    function arrow(x1, y1, x2, y2, dash) {
+      return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="var(--line-strong)" stroke-width="1.5" marker-end="url(#ah)"' + (dash ? ' stroke-dasharray="4 3"' : '') + '/>';
+    }
+    var defs = '<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--line-strong)"/></marker></defs>';
+
+    var diag = [
+      { h: "Hybrid — set-end", s: "1 call / set", svg:
+        node(6, 40, 120, "MediaPipe", "reps · form", C.cv) +
+        arrow(126, 60, 176, 60) +
+        node(176, 40, 120, "Set summary", "CV JSON", C.cv) +
+        arrow(296, 60, 346, 60) +
+        node(346, 40, 120, "Gemini", "coaching", C.vlm) +
+        '<text x="236" y="105" text-anchor="middle" class="fsub" fill="var(--muted)">fires every set — text + frames bundled</text>'
+      },
+      { h: "Hybrid — CV-gated", s: "call only when form drops", svg:
+        node(6, 12, 120, "MediaPipe", "every rep · free", C.cv) +
+        arrow(66, 52, 66, 78) +
+        node(6, 78, 120, "Form score", "gate check", C.cv) +
+        arrow(126, 98, 186, 98) +
+        '<text x="150" y="90" text-anchor="middle" class="fsub" fill="var(--pass)">score &lt; 70?</text>' +
+        node(186, 78, 120, "Gemini", "only if flagged", C.vlm) +
+        '<text x="246" y="140" text-anchor="middle" class="fsub" fill="var(--muted)">clean sets never leave the device</text>'
+      },
+      { h: "Hybrid — CV-guided keyframes", s: "CV improves the VLM input", svg:
+        node(6, 40, 120, "MediaPipe", "finds rep peaks", C.cv) +
+        arrow(126, 60, 176, 60) +
+        node(176, 30, 120, "Pick frames", "worst-rep / peak", C.cv) +
+        arrow(296, 60, 346, 60) +
+        node(346, 40, 120, "Gemini", "sharper read", C.vlm) +
+        '<text x="236" y="102" text-anchor="middle" class="fsub" fill="var(--muted)">not 5 even frames — the frames that matter</text>'
+      },
+      { h: "Hybrid — batched end-of-workout", s: "1 call / session", svg:
+        node(6, 14, 88, "Set 1", "+ keyframe", C.cv) +
+        node(6, 58, 88, "Set 2", "+ keyframe", C.cv) +
+        node(6, 102, 88, "Set N", "+ keyframe", C.cv) +
+        arrow(94, 34, 150, 74) + arrow(94, 78, 150, 78) + arrow(94, 122, 150, 82) +
+        node(150, 58, 120, "Session bundle", "all sets", C.cv) +
+        arrow(270, 78, 320, 78) +
+        node(320, 58, 140, "Gemini ×1", "whole-session review", C.vlm)
+      }
+    ];
+    $("diagrams").innerHTML = diag.map(function (d) {
+      return '<div class="dcard"><h3>' + d.h + '</h3><div class="sub">' + d.s + '</div>' +
+        '<svg viewBox="0 0 472 150" role="img" aria-label="' + d.h + ' data flow">' + defs + d.svg + '</svg></div>';
+    }).join("");
+  }
+
+  // ---------- wire up ----------
+  var inputs = ["users", "spd", "sets", "reps", "mins", "frames", "interval", "fdrop", "gate", "model"];
+  inputs.forEach(function (id) { $(id).addEventListener("input", render); });
+  $("res").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    resSel = b.getAttribute("data-v");
+    [].forEach.call(this.querySelectorAll("button"), function (x) {
+      x.setAttribute("aria-pressed", x === b ? "true" : "false");
+    });
+    render();
+  });
+  $("theme").addEventListener("click", function () {
+    var root = document.documentElement;
+    var cur = root.getAttribute("data-theme");
+    var isDark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.setAttribute("data-theme", isDark ? "light" : "dark");
+  });
+
+  buildMatrix();
+  buildDiagrams();
+  render();
+})();
+</script>
