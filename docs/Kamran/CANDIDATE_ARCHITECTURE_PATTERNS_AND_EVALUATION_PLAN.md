@@ -2,90 +2,49 @@
 
 *Prepared: June 11, 2026; updated: August 24, 2026*
 
+> **Status:** Active architecture evaluation — decision pending
+>
+> **Owns:** Candidate patterns, option definitions, evidence packages, scoring,
+> experiments, and architecture acceptance gates
+>
+> **Does not own:** Product scope, supported exercises, UX requirements, privacy
+> policy, safety language, or an accepted production architecture
+>
+> **Last reviewed:** August 24, 2026
+>
+> **Precedence:** [Product Spec](PRODUCT_SPEC.md) controls product requirements.
+> No production architecture is final until a separate architecture decision is
+> accepted. The next implementation spike is O6-N; that is not an acceptance
+> decision.
+
 ## Table of Contents
 
-- [Purpose](#purpose)
-- [Recommended Direction](#recommended-direction)
-- [MVP and Later Scope](#mvp-and-later-scope)
+- [Purpose and Boundaries](#purpose-and-boundaries)
 - [Candidate Architecture Patterns](#candidate-architecture-patterns)
 - [Media Evidence Packaging Strategies](#media-evidence-packaging-strategies)
 - [Storyboard Evidence Contract](#storyboard-evidence-contract)
+- [Pattern Technology Composition](#pattern-technology-composition)
 - [Architecture Decision Matrix](#architecture-decision-matrix)
 - [Pose Technology Matrix](#pose-technology-matrix)
-- [Recommended MVP Architecture](#recommended-mvp-architecture)
-- [Exercise Scope](#exercise-scope)
 - [Evaluation Plan](#evaluation-plan)
 - [Proposed Acceptance Gates](#proposed-acceptance-gates)
-- [Delivery Phases](#delivery-phases)
-- [Questions for Final Decision](#questions-for-final-decision)
+- [Open Architecture Inputs](#open-architecture-inputs)
 - [Current Technical Facts](#current-technical-facts)
 - [Sources](#sources)
 
-## Purpose
+## Purpose and Boundaries
 
-This document reconsiders the Calis App MVP from the beginning. Previous stack
-decisions are treated as candidates rather than constraints.
+This document compares possible AI movement-analysis architectures. Previous
+stack decisions are treated as candidates rather than constraints.
 
-The product still aims to give non-medical form feedback from short exercise
-clips. Computer vision (CV) must have a meaningful MVP role. The architecture
-should minimize unsupported feedback, raw-video exposure, operational cost, and
-work that does not help validate the product.
+The [Product Spec](PRODUCT_SPEC.md) is the only authority for product behavior
+and supported exercises. Architecture validation may proceed one exercise at a
+time without redefining that product scope.
 
-No pose model, VLM, exercise count, coaching model, or deployment pattern is
-final until the evaluation plan is completed.
-
-## Recommended Direction
-
-Start with:
-
-1. Two exercises and one required camera view per exercise.
-2. Browser-side MediaPipe Pose Landmarker running after recording.
-3. A browser quality gate before any telemetry is submitted.
-4. Timestamped landmarks sent to a TypeScript analysis API.
-5. Deterministic rep, phase, and form rules on the server.
-6. Template-based feedback with confidence and retry states.
-7. No raw-video upload or VLM dependency in the first usable version.
-8. An optional LLM wording experiment after deterministic findings are reliable.
-9. A separately consented research flow for collecting labeled test clips.
-10. A measured comparison of native video, fixed-rate storyboards, and
-    CV-directed storyboards before making a VLM payload part of production.
-
-This path gives CV a real analytical role while keeping the first system
-testable, inexpensive, and privacy-conscious.
-
-## MVP and Later Scope
-
-| Capability | Initial MVP | Later |
-|---|---|---|
-| Exercises | Two exercises | Add exercises only after separate validation |
-| Camera setup | One required view per exercise | Multiple views and automatic view detection |
-| Recording | Guided 5-15 second recording | Longer clips, imports, and automatic trimming |
-| Pose inference | Browser, after recording | Live framing guidance or server fallback |
-| Quality gate | Required joints, one person, framing, motion, and landmark confidence | Lighting estimation, view classification, and device-specific tuning |
-| Rep and phase tracking | One state machine per dynamic exercise | Tempo, pauses, asymmetry, and more movement variants |
-| Form analysis | Two or three visible, testable findings per exercise | Larger rule catalog and personalized thresholds |
-| Feedback | Templates from approved findings | LLM wording from approved findings only |
-| Audio feedback | None in the initial MVP | Optional confidence-gated live CV cues and spoken post-set summaries |
-| Confidence | Finding confidence plus retry/abstain state | Calibrated confidence by exercise, device, and view |
-| Results | Summary, rep count, positive note, and one correction | Comparisons, trends, and recurring issues |
-| History | Anonymous session or local recent history | Accounts, cloud history, and progress reports |
-| Raw video | Remains on device by default | Optional research upload with separate consent |
-| Derived frames and storyboards | Remain on device in the recommended CV-only MVP | Bounded, transient VLM experiment with separate consent |
-| Analytics | Quality failures, completion, latency, retries, and rule versions | Cohort analysis and experiment dashboards |
-| Scoring | None | Consider only after calibration and user research |
-
-Keep these outside the initial MVP:
-
-- continuous live form correction
-- automatic exercise recognition
-- more than one person
-- arbitrary exercises
-- medical or injury-risk judgments
-- personalized biomechanics
-- overall form scores
-- workout generation
-- social or competitive features
-- unvalidated production CV and VLM fusion
+No pose model, VLM, CV role, coaching model, media package, or deployment pattern
+is final until the evaluation plan is completed. O1 remains a comparison
+baseline because it is deterministic; O6-N is the next spike because it isolates
+the fixed-rate storyboard/VLM hypothesis without pose CV.
 
 ## Candidate Architecture Patterns
 
@@ -106,8 +65,8 @@ Local video -> browser pose -> quality gate -> landmark telemetry
   -> TypeScript rules -> template feedback
 ```
 
-This is the recommended MVP pattern. Raw video stays on the device while rules,
-confidence, result validation, and versioning remain centralized.
+This is the deterministic comparison baseline. Raw video stays on the device
+while rules, confidence, result validation, and versioning remain centralized.
 
 Browser telemetry is user-controlled and can be modified. That is acceptable for
 personal feedback, but it must not later be treated as proof for competition,
@@ -158,13 +117,14 @@ privacy responsibility.
 ### P7: VLM Primary, CV Quality Gate
 
 ```txt
-Browser CV quality gate -> uploaded video -> VLM observations
+Browser CV quality gate -> uploaded video or uniform storyboard -> VLM observations
   -> deterministic validation -> feedback
 ```
 
 This is fast to prototype across exercises but has weaker measurement
-repeatability. Current Gemini video processing samples at 1 FPS by default,
-which may miss fast exercise phases unless sampling is configured and tested.
+repeatability. With native video, current Gemini processing samples at 1 FPS by
+default, which may miss fast exercise phases unless sampling is configured and
+tested.
 
 ### P8: CV-Directed Storyboard with Structured Fusion
 
@@ -186,6 +146,18 @@ agreement between CV and the VLM as proof. Automatic validation can reject
 unknown frame IDs, out-of-catalog observation codes, missing required phases,
 and deterministic conflicts. Whether the cited pixels truly support a visual
 claim still requires human-labeled holdout evaluation.
+
+### P9: VLM Primary, No Pose CV
+
+```txt
+Local video -> deterministic fixed-rate frame extraction and storyboard
+  -> VLM observations -> deterministic validation -> feedback
+```
+
+This pattern uses no pose estimation, exercise measurements, or CV quality gate.
+Frame extraction, timestamps, resizing, and collage construction organize the
+media but do not interpret the exercise. O6-N uses this pattern to isolate the
+value and limitations of a VLM-only storyboard path.
 
 ## Media Evidence Packaging Strategies
 
@@ -237,11 +209,11 @@ units, which also makes each person smaller. Use the provider's token-counting
 and usage metadata rather than assuming that one JPEG is cheaper than several
 images or native video.
 
-For the 5-15 second clip target, start by testing a fixed maximum of 12 visual
-tiles per request, a minimum usable person size per tile, and 0.5, 1, and 2 FPS.
-These are experiment settings, not product guarantees. If the source produces
-more evidence than the bound permits, select or split deterministically; never
-keep shrinking an unbounded collage.
+For an initial evaluation cohort of 5-15 second clips, test a fixed maximum of
+12 visual tiles per request, a minimum usable person size per tile, and 0.5, 1,
+and 2 FPS. These are experiment settings, not product requirements. If the
+source produces more evidence than the bound permits, select or split
+deterministically; never keep shrinking an unbounded collage.
 
 ## Storyboard Evidence Contract
 
@@ -427,11 +399,14 @@ Patterns describe architecture shapes; options describe the specific decision ca
 | P6 Server CV | Yes, server-side | No | No |
 | P7 VLM primary + CV gate | Yes, gate only | Yes, primary analyzer | No |
 | P8 CV-directed storyboard | Yes, analytical measurements and event selection | Yes, constrained visual complement | No separate LLM required |
+| P9 VLM primary, no pose CV | No | Yes, primary analyzer | No |
 
 P3 keeps the analysis CV-based and only uses an LLM to rephrase approved
-findings. P4, P5, P7, and P8 use a VLM for vision analysis. P8 differs from P7
+findings. P4, P5, P7, P8, and P9 use a VLM for vision analysis. P8 differs from P7
 because its CV layer supplies deterministic analytical evidence and selects the
-visual moments; P7 uses CV only as a gate. The recommended MVP, P2, uses CV only.
+visual moments; P7 uses CV only as a gate. P2 is the deterministic CV-only
+comparison baseline, while P9 isolates VLM-only analysis; no pattern is accepted
+yet.
 
 ## Architecture Decision Matrix
 
@@ -442,7 +417,6 @@ Scores below are planning estimates to prioritize implementation and evaluation.
 
 | Gate | Minimum Requirement |
 |---|---|
-| Product CV role gate | CV must have a meaningful MVP role; VLM-only configurations may be benchmark controls but not MVP candidates |
 | Safety language gate | No unsupported medical or diagnostic claims in validation set |
 | Evidence gate | Inadequate evidence must return retry or abstention |
 | Evidence traceability gate | Every accepted VLM finding uses payload-specific evidence: valid supplied frame IDs for E2/E3 or a validated timestamp/range for E1; deterministic-only findings cite versioned CV evidence |
@@ -451,7 +425,8 @@ Scores below are planning estimates to prioritize implementation and evaluation.
 | Privacy gate | Must match the selected policy for identifiable video, frames, crops, and storyboard sheets leaving the device |
 | Payload bound gate | Enforce maximum tiles, sheets, dimensions, bytes, and tokens; overflow uses deterministic selection, splitting, retry, or abstention |
 
-Any option that fails a gate is disqualified for MVP regardless of weighted score.
+Any option that fails a gate is ineligible for acceptance regardless of its
+weighted score.
 
 ### Step 2: Weighted Criteria
 
@@ -473,16 +448,13 @@ Total score = sum of (criterion score × weight) across all weighted criteria.
 
 | Option ID | Option Summary | Scope Label | Source Pattern | Evidence Package |
 |---|---|---|---|---|
-| O1 | Browser CV quality gate plus browser landmarks, server deterministic rules, template feedback | MVP Candidate | P2 | None |
-| O2 | O1 plus LLM wording constrained to approved findings | Post-MVP Candidate | P3 | None |
-| O3 | O1 plus selective VLM escalation only for predefined low-confidence cases | Post-MVP Candidate | P4 | E1 by default; E3 in O3-S |
+| O1 | Browser CV quality gate plus browser landmarks, server deterministic rules, template feedback | Baseline Candidate | P2 | None |
+| O2 | O1 plus LLM wording constrained to its approved deterministic findings, including any biomechanical heuristics | Candidate | P3 | None |
+| O3 | O1 plus selective VLM escalation only for predefined low-confidence cases | Candidate | P4 | E1 by default; E3 in O3-S |
 | O4 | VLM-primary analysis with browser CV quality gate and deterministic post-validation | Research Candidate | P7 | E1 |
-| O5 | Browser CV telemetry to server heuristics engine plus LLM coaching from structured findings | Post-MVP Candidate | P3, Dani variant | None |
 | O6 | Browser CV quality gate plus fixed-rate timestamped storyboard, one bounded VLM request, and schema/evidence validation | Research Candidate | P7 | E2 |
-| O6-N | Fixed-rate timestamped storyboard and one bounded VLM request without pose CV, CV measurements, or a CV quality gate | Benchmark Control, not MVP | VLM-only control | E2 |
+| O6-N | Locally sample a 1 FPS baseline, pack reduced-resolution frames into one bounded timestamped storyboard, and make one VLM request without pose CV, CV measurements, or a CV quality gate | Next Spike Candidate | P9 | E2 |
 | O7 | Higher-cadence browser CV selects and labels phase/event frames; bounded storyboard and CV evidence feed one constrained VLM request and deterministic fusion | Research Candidate | P8 | E3 |
-
-Note: O5 is the option that represents Dani's described architecture (CV landmarks -> server biomechanical heuristics -> LLM coaching text).
 
 O3 can use a focused E3 storyboard instead of native video for its predefined
 low-confidence escalations. Track this evaluation configuration as `O3-S`; it is
@@ -493,9 +465,10 @@ default E1 escalation and does not score O3-S separately.
 
 O6-N is O6 with the CV quality gate removed. Local decoding, frame extraction,
 resizing, and collage creation are deterministic media processing, not exercise
-CV. O6-N exists only to measure the value added by the CV gate and CV-directed
-evidence. It is deliberately unscored and excluded from the MVP ranking because
-it fails the product CV role gate.
+CV. It is the next implementation spike and remains deliberately unscored until
+its measured accuracy, latency, token use, cost, and repeatability are available.
+Its baseline cadence is 1 FPS; 0.5 and 2 FPS remain comparison variants rather
+than separate options.
 
 ### Planning Scores (Pre-Benchmark)
 
@@ -505,131 +478,44 @@ it fails the product CV role gate.
 | O2 | 4.0 | 5.0 | 5.0 | 3.5 | 3.5 | 3.0 | 3.5 | 4.13 |
 | O3 | 4.0 | 3.5 | 4.0 | 2.5 | 2.5 | 2.5 | 4.0 | 3.45 |
 | O4 | 3.0 | 2.0 | 2.5 | 2.5 | 3.0 | 3.5 | 4.5 | 2.80 |
-| O5 | 4.0 | 5.0 | 4.5 | 3.5 | 3.5 | 3.0 | 4.0 | 4.08 |
 | O6 | 3.0 | 3.0 | 2.5 | 3.5 | 3.5 | 4.0 | 4.5 | 3.20 |
 | O7 | 3.5 | 3.0 | 3.5 | 3.5 | 3.5 | 2.5 | 4.0 | 3.33 |
+
+O6-N is intentionally absent from this planning-score table. Its next-spike
+measurements should replace guesswork before it is ranked.
 
 ### Decision Readout
 
 | Rank | Option ID | Why It Ranks Here |
 |---|---|---|
-| 1 | O1 | Best MVP baseline for privacy, repeatability, and controlled deterministic behavior |
+| 1 | O1 | Strongest deterministic baseline for privacy, repeatability, and controlled behavior |
 | 2 | O2 | Strong near-term upgrade once deterministic findings are stable |
-| 3 | O5 | Strong alternative with explicit heuristics layer; should be benchmarked directly against O1 |
-| 4 | O3 | Promising for edge cases but adds cost, consent complexity, and routing risk |
-| 5 | O7 | Higher information value per visual frame, but always sends imagery and adds CV selection and fusion complexity |
-| 6 | O6 | Simple one-request VLM experiment with exact frame identity, but uniform sampling and collage resolution limit evidence quality |
-| 7 | O4 | Fast for broad exercise coverage but weaker repeatability and privacy profile |
+| 3 | O3 | Promising for edge cases but adds cost, consent complexity, and routing risk |
+| 4 | O7 | Higher information value per visual frame, but always sends imagery and adds CV selection and fusion complexity |
+| 5 | O6 | Simple one-request VLM experiment with exact frame identity, but uniform sampling and collage resolution limit evidence quality |
+| 6 | O4 | Fast for broad exercise coverage but weaker repeatability and privacy profile |
 
-Recommended execution order: O1 as MVP baseline, then benchmark O5 in parallel
-as the primary alternative, then add O2 if wording quality needs improvement.
-For the VLM research branch, compare O4/E1, O6-N/E2, O6/E2, and O7/E3 on the
-same clips and actual token budgets. Evaluate O3-S only after the O1 confidence
-router is stable. The O6 and O7 scores are conservative pre-benchmark
-hypotheses, not evidence that either storyboard architecture is accurate enough
-to ship.
+Evaluation order: implement O6-N/E2 next, then compare it with O6/E2 using the
+same clips and frame payloads to isolate the CV quality gate's value. Preserve
+O1 as the deterministic baseline and O4/E1 as the native-video control; evaluate
+O7/E3 after the fixed-rate storyboard result is known. The planning scores are
+hypotheses, not evidence that any architecture is accurate enough to accept.
 
 ## Pose Technology Matrix
 
-| Technology | Browser | Server | Typical Output | License Consideration | MVP Assessment |
+| Technology | Browser | Server | Typical Output | License Consideration | Evaluation Note |
 |---|---|---|---|---|---|
-| MediaPipe Pose Landmarker | Strong official web support | Possible | 33 image and world landmarks, visibility, optional masks | MediaPipe repository is Apache 2.0; verify notices for distributed model assets | Recommended first choice |
-| MoveNet Lightning/Thunder | Strong through TensorFlow.js | Strong through TensorFlow | 17 body keypoints and confidence | Published model is Apache 2.0 | Benchmark as browser fallback |
-| Ultralytics YOLO-Pose | Possible through export/runtime work | Strong | Person boxes, 17 default keypoints, confidence | AGPL-3.0 or Enterprise license | Avoid for first commercial MVP unless licensing is resolved |
-| MMPose/RTMPose | Possible with custom export | Strong | Model-dependent keypoints and confidence | Toolkit is Apache 2.0; verify each model and dataset | Good later server candidate |
-| OpenPose | Generally impractical | Strong but compute-heavy | Body, hand, face, and foot keypoints | Default use is non-commercial; commercial license is separate | Exclude from MVP |
+| MediaPipe Pose Landmarker | Strong official web support | Possible | 33 image and world landmarks, visibility, optional masks | MediaPipe repository is Apache 2.0; verify notices for distributed model assets | Primary browser CV benchmark |
+| MoveNet Lightning/Thunder | Strong through TensorFlow.js | Strong through TensorFlow | 17 body keypoints and confidence | Published model is Apache 2.0 | Browser comparison candidate |
+| Ultralytics YOLO-Pose | Possible through export/runtime work | Strong | Person boxes, 17 default keypoints, confidence | AGPL-3.0 or Enterprise license | Licensing must be resolved before product use |
+| MMPose/RTMPose | Possible with custom export | Strong | Model-dependent keypoints and confidence | Toolkit is Apache 2.0; verify each model and dataset | Server-side comparison candidate |
+| OpenPose | Generally impractical | Strong but compute-heavy | Body, hand, face, and foot keypoints | Default use is non-commercial; commercial license is separate | Not prioritized for evaluation |
 
-MediaPipe is the practical default because it has an official JavaScript API,
-video tracking, 33 landmarks, world-coordinate output, and a permissive
-repository license. Its web task is currently labeled as a preview, so pin the
-package and model versions and test upgrades. MoveNet should still be benchmarked
-on target devices because its 17-keypoint models may be faster.
-
-## Recommended MVP Architecture
-
-```txt
-Exercise selection and fixed camera instructions
-  -> record a short clip
-  -> decode locally
-  -> MediaPipe in a Web Worker
-  -> quality and confidence gate
-  -> compress timestamped landmarks and capture metadata
-  -> Next.js analysis endpoint
-  -> exercise state machine and deterministic rules
-  -> prioritized findings and confidence
-  -> template feedback
-  -> save metadata and result
-```
-
-### Browser Responsibilities
-
-- recording and local playback
-- local video decoding
-- pose inference in a Web Worker
-- required-joint and one-person checks
-- framing, motion, and confidence checks
-- landmark smoothing and telemetry compression
-- immediate retry guidance
-- deletion of raw local processing data after completion
-
-MediaPipe web inference calls can block the main thread, so the implementation
-should use a worker and benchmark actual target devices.
-
-### Server Responsibilities
-
-- validate exercise, consent, schema, telemetry size, and timestamps
-- reject impossible or incomplete landmark sequences
-- calculate normalized angles and distances
-- identify movement phases through a state machine
-- count complete repetitions
-- apply exercise-specific rules
-- combine quality, landmark, phase, and rule confidence
-- return a retry when evidence is inadequate
-- produce approved findings and template feedback
-- store result metadata, model version, and rule version
-
-### Optional LLM Boundary
-
-An LLM may later rewrite approved findings into concise coaching. It must not
-receive raw video, add findings, change severity, or override confidence. The
-deterministic result must remain usable when the LLM is unavailable.
-
-### Optional Live Audio Cue Layer
-
-Live audio is an output channel, not a new architecture option:
-
-```txt
-browser pose -> persistent high-confidence rule -> prioritized cue code
-  -> cooldown and conflict suppression -> on-device text-to-speech
-```
-
-Keep the VLM outside the live loop. Speak only short validated CV cues, one at a
-time, and suppress speech when evidence is weak. Users must be able to mute the
-feature. Validated VLM findings may be spoken after the set. Before release,
-measure cue precision, trigger-to-speech latency, cues per minute, repeated or
-conflicting cues, and user distraction.
-
-### Research Data Boundary
-
-Production analysis should not require video upload. Create a separate research
-flow where participants explicitly consent to temporary clip retention and
-human annotation. Do not silently repurpose production videos for calibration.
-
-## Exercise Scope
-
-Recommended first exercises:
-
-| Exercise | Required View | Initial Outputs | Why |
-|---|---|---|---|
-| Push-up | Side | Rep count, phases, approximate depth, body-line consistency | Core calisthenics movement with visible dynamic phases |
-| Squat | Side | Rep count, phases, approximate depth, torso consistency | Tests a different joint chain and broadens product evidence |
-
-Limit each exercise to two or three findings that are visible from the required
-view. Do not attempt front-view knee tracking, hidden-joint claims, pain
-assessment, or injury-risk prediction from a side-view clip.
-
-If reducing technical risk is more important than exercise breadth, replace the
-squat with a plank. This gives one dynamic exercise and one simpler static hold.
+MediaPipe is a practical first browser-CV benchmark because it has an official
+JavaScript API, video tracking, 33 landmarks, world-coordinate output, and a
+permissive repository license. Its web task is currently labeled as a preview,
+so pin the package and model versions and test upgrades. MoveNet should still be
+benchmarked on target devices because its 17-keypoint models may be faster.
 
 ## Evaluation Plan
 
@@ -700,7 +586,7 @@ Measure:
 - phase detection precision, recall, and timing error
 - finding precision and recall
 - false confident findings
-- quality-gate false acceptance and false rejection
+- quality-gate false acceptance and false rejection, when a gate is present
 - confidence calibration
 - deterministic repeatability
 
@@ -712,7 +598,7 @@ is preferable to confidently inventing one.
 Measure:
 
 - recording completion rate
-- quality-gate rejection rate
+- input-rejection and abstention rate
 - successful retry rate
 - time from recording end to feedback
 - user understanding of the correction
@@ -720,12 +606,13 @@ Measure:
 - second-attempt rate
 - reported usefulness of the next result
 
-A technically accurate system that repeatedly rejects normal users is not a
-successful MVP.
+A technically accurate system that repeatedly rejects normal users is not an
+acceptable architecture.
 
 ### 7. Evaluate VLM Value Separately
 
-After the CV baseline is stable, run a consented offline comparison:
+Run a consented offline comparison, preserving CV rules as a control when they
+are available:
 
 | System | Evaluation |
 |---|---|
@@ -768,15 +655,19 @@ controls.
 These are initial decision targets and should be adjusted after the engineering
 spike.
 
+Metrics that name a pre-analysis quality gate apply only to options containing
+one. O6-N must instead satisfy the all-option evidence, abstention, and payload
+gates; the absence of a CV gate is not an automatic pass.
+
 | Metric | Proposed Gate |
 |---|---|
-| Usable clips rejected by quality gate | 10% or less |
-| Unusable clips correctly rejected | 85% or more |
+| Usable clips rejected by a pre-analysis quality gate (gate-bearing options) | 10% or less |
+| Unusable clips correctly rejected by a pre-analysis quality gate (gate-bearing options) | 85% or more |
 | Exact rep count on accepted clips | 95% or more |
 | High-confidence form finding precision | 90% or more |
 | High-confidence form finding recall | 70% or more |
 | Same input and rule version | Identical deterministic findings |
-| Same input and storyboard versions | Identical selected frame IDs, source timestamps, tile ordering, and CV manifest |
+| Same input and storyboard versions | Identical selected frame IDs, source timestamps, tile ordering, and applicable manifest fields |
 | VLM evidence references | Storyboards cite valid frame IDs; native video cites validated timestamp ranges; otherwise reject the finding |
 | Claim requires a missing phase | Always returns retry or abstention for that claim |
 | Phase-dependent accepted findings | 100% include the required captured phases; otherwise reject or abstain |
@@ -788,101 +679,24 @@ spike.
 | End-to-end latency | Set after device spike; report p50 and p95 |
 | User-rated understandable feedback | 80% or more |
 
-Failure to reach a gate should narrow the supported devices, views, exercises,
-or findings before adding another model.
+Failure to reach a gate should narrow the evaluated claim, capture view, or
+supported-device assumptions before adding another model. Any proposed product
+scope change belongs in the [Product Spec](PRODUCT_SPEC.md).
 
-## Delivery Phases
+## Open Architecture Inputs
 
-### Phase 0: Feasibility
+The [Product Spec](PRODUCT_SPEC.md) owns product decisions. Architecture
+acceptance still needs these implementation and evaluation inputs:
 
-- implement local recording and worker-based MediaPipe
-- test target phones and browsers
-- define push-up and squat labeling rubrics
-- collect the engineering-spike dataset
-- decide whether MoveNet must remain a fallback
-- build deterministic E2 and E3 evidence packages for offline comparison
-- benchmark native video, separate frames, uniform sheets, and CV-directed
-  sheets with provider token counting and usage metadata
-
-### Phase 1: Deterministic Vertical Slice
-
-- quality gate
-- landmark telemetry schema
-- one exercise state machine
-- rep counting
-- one positive note and one correction
-- confidence and retry
-- template feedback
-- operational metrics
-
-Ship internally with one exercise before generalizing the rule system.
-
-### Phase 2: MVP
-
-- second exercise
-- final holdout evaluation
-- short recording guidance
-- anonymous or local history
-- user testing and retry loop
-- explicit privacy and research consent
-
-### Phase 3: Measured Enhancements
-
-- optional LLM wording
-- live framing guidance
-- optional confidence-gated CV audio cues
-- third exercise
-- accounts and progress history
-- selective VLM experiment
-- O3-S, O6, or O7 only if its separate acceptance gates are met
-- server pose fallback only if device benchmarks justify it
-
-## Questions for Final Decision
-
-### Product
-
-1. What is the primary MVP promise: reliable rep counting, form correction, or
-   both?
-2. Which two exercises matter most to the first users?
-3. Will users accept one strict camera view and setup instructions per exercise?
-4. Is post-recording feedback sufficient, or is live framing required?
-5. Is one prioritized correction enough for the first result?
-6. Which is worse for the product: missing an issue or reporting a false issue?
-
-### Users and Devices
-
-7. Which browsers and minimum phone classes must be supported?
-8. Is desktop upload important, or is mobile recording the main flow?
-9. Will the first launch serve users in the EEA, United Kingdom, or Switzerland?
-
-### Privacy and Data
-
-10. Must identifiable video, frames, and storyboard sheets always remain on the
-    device in normal production use?
-11. Can you recruit users who separately consent to temporary research-media
-    upload and human review?
-12. Do you need accounts and cloud history for product validation, or can recent
-    history stay local?
-
-### Feedback and AI
-
-13. Is an LLM required for launch, or are carefully written templates acceptable?
-14. If a VLM is used, may video or derived frames be sent to a paid external
-    provider?
-15. Should VLM analysis be routine, user-requested, or only a research
-    experiment?
-
-### Delivery and Validation
-
-16. What is the launch deadline and how many engineers are available?
-17. Do you have access to a trainer, physiotherapist, or other qualified reviewer
-    to define and label observable form findings?
-18. How many participants and target devices can you recruit for validation?
-19. Are the proposed acceptance gates strict enough for your risk tolerance?
-20. Is the product commercial and closed-source, or can AGPL software be used?
-
-The minimum answers needed to finalize the architecture are 1, 2, 3, 6, 7, 10,
-11, 13, 16, 17, and 20.
+1. Which supported exercise from the Product Spec is the first O6-N validation
+   cohort?
+2. Which browsers and minimum phone classes must the experiment cover?
+3. What p95 latency, provider-cost, and upload-size budgets apply per set?
+4. May identifiable derived frames be sent to the selected provider under the
+   product's privacy and consent requirements?
+5. How many human-labeled participants and clips are available for calibration
+   and a participant-separated holdout?
+6. Which provider/model/version will be pinned for the first comparison?
 
 ## Current Technical Facts
 
