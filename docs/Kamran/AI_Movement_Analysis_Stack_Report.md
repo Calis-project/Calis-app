@@ -1,34 +1,53 @@
-# AI Movement Analysis Stack Decision
+# AI Movement Analysis Stack: Superseded Gemini-First Proposal
 
 *Prepared: June 2026*
+
+> [!IMPORTANT]
+> **Status:** Superseded historical proposal; not a current architecture decision.
+>
+> **Owns:** The rationale and assumptions of the June 2026 Gemini-first proposal.
+>
+> **Does not own:** Current product scope, pending architecture evaluation, or an
+> accepted implementation architecture.
+>
+> **Last reviewed:** 24 August 2026.
+>
+> **Precedence:** [Product Spec](PRODUCT_SPEC.md) owns current product scope, and
+> [Candidate Architecture Patterns and Evaluation Plan](CANDIDATE_ARCHITECTURE_PATTERNS_AND_EVALUATION_PLAN.md)
+> owns the pending architecture comparison. Those documents prevail wherever
+> this historical report conflicts with them.
+>
+> All architecture and requirement language below describes the June 2026
+> proposal unless explicitly stated otherwise.
 
 ## Table of Contents
 
 - [Objective](#objective)
-- [Stack Decision](#stack-decision)
-- [MVP Architecture](#mvp-architecture)
+- [Proposed Stack](#proposed-stack)
+- [Proposed MVP Architecture](#proposed-mvp-architecture)
 - [Responsibility Boundaries](#responsibility-boundaries)
 - [CV and VLM Roles](#cv-and-vlm-roles)
-- [Recommended Stack](#recommended-stack)
+- [Proposed Technology Stack](#proposed-technology-stack)
 - [Analysis Engine Requirements](#analysis-engine-requirements)
 - [Operational Requirements](#operational-requirements)
 - [Privacy and Safety](#privacy-and-safety)
 
 ## Objective
 
-Calis App analyzes short videos of push-ups, squats, planks, lunges, and hollow
-holds. The MVP should test whether users understand structured form feedback and
-use it to improve later attempts.
+The June 2026 proposal assumed a fixed supported-exercise catalog. Its proposed
+MVP would test whether users understand structured form feedback and use it to
+improve later attempts.
 
-This document records the AI stack decision. Product and implementation
-boundaries remain authoritative in
-[Roadmap and Decisions](ROADMAP_AND_DECISIONS.md) and
-[Technical Plan](TECHNICAL_PLAN.md). Definitions are available in
+This document preserves that superseded stack proposal for historical context.
+For current product scope, see [Product Spec](PRODUCT_SPEC.md). For the pending
+architecture comparison, see
+[Candidate Architecture Patterns and Evaluation Plan](CANDIDATE_ARCHITECTURE_PATTERNS_AND_EVALUATION_PLAN.md).
+Definitions are available in
 [AI Movement Analysis Concepts and Tools](AI_MOVEMENT_ANALYSIS_CONCEPTS.md).
 
-## Stack Decision
+## Proposed Stack
 
-The MVP uses:
+The June 2026 proposal specified:
 
 1. A Gemini video-capable model for temporal visual observations.
 2. A TypeScript analysis engine for normalization, exercise rules, confidence,
@@ -37,20 +56,21 @@ The MVP uses:
 4. Schema, evidence, supported-exercise, and safety validation before display.
 5. Transient video processing with deletion after analysis.
 
-Gemini native video is preferred because it preserves more motion, tempo, and
-transition context than manually selected frames. Provider observations remain
-estimates and must not be presented as pose-grade or clinical measurements.
+The proposal preferred Gemini native video because it preserves more motion,
+tempo, and transition context than manually selected frames. Provider
+observations remain estimates and must not be presented as pose-grade or
+clinical measurements.
 
 Representative frames sent to an image-capable provider are the fallback when
 native video is unavailable. Frame sampling can miss important movement between
 frames.
 
-Browser-side MediaPipe is deferred to a later pre-submission quality gate for
-framing, body visibility, and clip usability. It is not the primary analyzer.
-Any future server-side pose estimation should run as a Python sidecar rather than
-replace the Next.js backend.
+The proposal deferred browser-side MediaPipe to a later pre-submission quality
+gate for framing, body visibility, and clip usability. It is not the primary
+analyzer. Any future server-side pose estimation should run as a Python sidecar
+rather than replace the Next.js backend.
 
-## MVP Architecture
+## Proposed MVP Architecture
 
 ```txt
 Record or upload a short clip
@@ -65,9 +85,9 @@ Record or upload a short clip
   -> source video discarded
 ```
 
-The complete MVP remains in one Next.js App Router codebase. Route handlers
-protect provider credentials and coordinate validation, provider calls,
-analysis, coaching, persistence, and response delivery.
+The proposal kept the complete MVP in one Next.js App Router codebase. Route
+handlers protect provider credentials and coordinate validation, provider
+calls, analysis, coaching, persistence, and response delivery.
 
 ## Responsibility Boundaries
 
@@ -93,11 +113,11 @@ than analyzed generically.
 | Vision-language model | Interpret video context and return structured temporal observations without claiming pose-grade precision |
 | Analysis engine | Validate either source, apply approved exercise rules, combine confidence, and remain the source of truth |
 
-For the MVP, Gemini is the primary observation provider. Browser-side pose
+In this proposal, Gemini was the primary observation provider. Browser-side pose
 estimation remains a later quality gate; it may become an analysis input only
 after validation against human-labeled clips.
 
-## Recommended Stack
+## Proposed Technology Stack
 
 | Layer | Choice |
 |---|---|

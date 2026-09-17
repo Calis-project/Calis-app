@@ -1,5 +1,13 @@
 # AI Movement Analysis Concepts and Tools
 
+| Document status | Value |
+|---|---|
+| **Status** | Reference; non-normative |
+| **Owns** | Stable terminology, technical concepts, and general limitations |
+| **Does not own** | Product scope, supported exercises, safety policy, architecture selection, or delivery planning |
+| **Last reviewed** | 2026-08-24 |
+| **Precedence** | [Product Spec](PRODUCT_SPEC.md) governs product scope and safety; [Candidate Architecture Patterns and Evaluation Plan](CANDIDATE_ARCHITECTURE_PATTERNS_AND_EVALUATION_PLAN.md) governs pending architecture options and experiments. Those documents prevail if this guide conflicts with either. |
+
 ## Table of Contents
 
 - [Purpose](#purpose)
@@ -12,18 +20,17 @@
   - [Confidence](#confidence)
   - [Quality Gates and Validation](#quality-gates-and-validation)
   - [VLMs, LLMs, and Hybrid Analysis](#vlms-llms-and-hybrid-analysis)
-- [Calis App Pipeline](#calis-app-pipeline)
+- [Composable Analysis Pipeline](#composable-analysis-pipeline)
 - [Relevant Tools](#relevant-tools)
-- [Recommended MVP Approach](#recommended-mvp-approach)
 - [Limits and Safety](#limits-and-safety)
 
 ## Purpose
 
-This guide defines the concepts needed to understand AI-assisted movement
-analysis in Calis App. Product and implementation decisions remain authoritative
-in [Roadmap and Decisions](ROADMAP_AND_DECISIONS.md),
-[Technical Plan](TECHNICAL_PLAN.md), and
-[AI Movement Analysis Stack Report](AI_Movement_Analysis_Stack_Report.md).
+This guide defines concepts used when discussing AI-assisted movement analysis.
+It does not select an implementation. See the
+[Product Spec](PRODUCT_SPEC.md) for product requirements and the
+[Candidate Architecture Patterns and Evaluation Plan](CANDIDATE_ARCHITECTURE_PATTERNS_AND_EVALUATION_PLAN.md)
+for the options currently under evaluation.
 
 The key distinction is:
 
@@ -32,18 +39,19 @@ The key distinction is:
 - **Pose estimation** converts images into structured body landmarks.
 - **Movement analysis** turns observations or landmarks into confidence-scored
   findings using exercise-specific rules.
-- **LLM coaching** explains approved findings in clear, supportive language.
+- **Language-model coaching** can explain approved findings in clear,
+  supportive language.
 
-These components support fitness feedback, not medical diagnosis or
-physiotherapy advice.
+These concepts concern fitness feedback rather than medical diagnosis or
+physiotherapy advice. The Product Spec owns the applicable safety requirements.
 
 ## Essential Concepts
 
 ### Computer Vision and Pose Estimation
 
-**Computer vision** extracts information from images and video. In Calis App, it
-supports exercise observation, movement-phase estimation, and body-position
-analysis.
+**Computer vision** extracts information from images and video. In movement
+analysis, it can support exercise observation, phase estimation, and
+body-position analysis.
 
 **Pose model** is an AI model that detects a person's body position from an
 image or video.
@@ -55,8 +63,8 @@ landmarks.
 wrists, hips, knees, and ankles. Each point usually has coordinates and a
 confidence or visibility value.
 
-Pose estimation provides measurements; it does not determine whether an
-exercise is correct. That decision belongs to the analysis engine.
+Pose estimation provides measurements; it does not by itself determine whether
+an exercise is correct.
 
 ### Common Pose Tools and Models
 
@@ -81,7 +89,7 @@ impractical.
 use but sensitive to camera angle and perspective.
 
 **3D pose** also estimates depth. With one consumer camera, depth is inferred
-and should not be treated as motion-capture-quality data.
+and is not equivalent to motion-capture-quality data.
 
 **Tracking** connects observations across frames to estimate repetitions,
 movement phases, tempo, and alignment changes. Occlusion, fast motion,
@@ -94,8 +102,8 @@ Pose landmarks can be tracked across frames to identify movement phases. A
 bottom, rising, and standing for one squat repetition.
 
 **Landmark smoothing** reduces frame-to-frame noise before angles, phases, or
-repetitions are calculated. Complete phase transitions should be required before
-a repetition is counted.
+repetitions are calculated. Requiring complete phase transitions is one way to
+avoid counting partial repetitions.
 
 ### Biomechanics and Rule-Based Analysis
 
@@ -107,20 +115,20 @@ are approximations.
 evidence. For example, a squat rule may evaluate estimated depth during the
 bottom phase.
 
-Each exercise needs rules for valid phases, complete repetitions, joint-angle or
-alignment thresholds, timing, and minimum landmark confidence. Rules make
-findings repeatable and testable, but thresholds must be validated across camera
-positions, body types, clothing, and movement variations.
+Exercise-specific rule sets can define valid phases, complete repetitions,
+joint-angle or alignment thresholds, timing, and minimum landmark confidence.
+Rules make findings repeatable and testable; threshold validation commonly uses
+varied camera positions, body types, clothing, and movement variations.
 
 ### Confidence
 
 Confidence expresses how certain a provider or analysis stage is about an
-observation. Calis App must preserve confidence from visual observations through
-analysis and final feedback.
+observation. Preserving it between stages allows later logic to distinguish
+strong from weak evidence.
 
-When important evidence is uncertain or hidden, the app should request a better
-recording instead of presenting precise feedback. Confidence does not indicate
-that an exercise is safe or correct.
+An uncertainty policy can map hidden or weak evidence to a retry request instead
+of precise feedback. Confidence does not indicate that an exercise is safe or
+correct.
 
 ### Quality Gates and Validation
 
@@ -129,102 +137,99 @@ clip when required joints are hidden, framing is unsuitable, or confidence is
 too low. A **confidence gate** similarly prevents uncertain evidence from
 becoming a form finding.
 
-Rules and thresholds must be calibrated against varied, human-labeled clips.
-Validation should measure incorrect findings, missed issues, rep-count error,
-and whether low-quality clips are rejected appropriately.
+Calibration compares rules and thresholds with varied, human-labeled clips.
+Typical validation measures include incorrect findings, missed issues,
+rep-count error, and appropriate rejection of low-quality clips.
 
 ### VLMs, LLMs, and Hybrid Analysis
 
 A **vision-language model (VLM)** interprets visual content and language. For the
-MVP, a Gemini video-capable model provides temporal observations such as
-estimated reps, phases, alignment, and media quality.
+same task, a VLM may receive native video, individual images, or a storyboard
+containing timestamped frames. Its useful outputs can include qualitative
+observations about movement, context, equipment, framing, and image quality.
 
-A **large language model (LLM)** converts structured findings into concise
-coaching. It must not invent measurements, diagnoses, or unsupported issues.
+A **large language model (LLM)** can convert structured findings into concise
+coaching. Schema-conforming output is not proof that a visual claim is correct,
+so evidence and validation remain important.
 
-Calis App uses a **hybrid approach**:
+A **hybrid approach** combines two or more analysis methods. Possible role
+boundaries include:
 
-1. A VLM produces structured, confidence-scored observations.
-2. The analysis engine normalizes observations and applies deterministic rules.
-3. An LLM explains the resulting evidence.
-4. Schema and safety checks validate the response before display.
+- CV or pose estimation measures landmarks, phases, angles, and timing.
+- A VLM interprets selected frames or video and broader visual context.
+- Deterministic code normalizes evidence, applies rules, and validates outputs.
+- An LLM or templates turn approved findings into user-facing language.
 
-CV is repeatable but sensitive to camera position, occlusion, landmark error,
-and rule quality. A VLM handles context more flexibly but may be inconsistent or
-produce unsupported observations. Neither should be treated as ground truth.
+An architecture may use any subset of these components and assign their roles
+differently. CV is repeatable but sensitive to camera position, occlusion,
+landmark error, and rule quality. A VLM handles context more flexibly but may be
+inconsistent or produce unsupported observations. Neither is ground truth.
 
-## Calis App Pipeline
+## Composable Analysis Pipeline
+
+The following is a vocabulary map, not a prescribed product pipeline. Optional
+stages depend on the candidate being evaluated.
 
 ```txt
 Camera or uploaded video
-  -> client and server media validation
-  -> Gemini video observations
-  -> observation normalization
-  -> exercise-specific analysis rules
-  -> structured findings with confidence
-  -> LLM coaching from findings only
-  -> safety and schema validation
-  -> checklist feedback
+  -> media validation or quality gate (optional)
+  -> CV measurements and/or selected frames or native video
+  -> VLM observations (optional)
+  -> normalization and deterministic analysis (optional)
+  -> structured findings with evidence and confidence
+  -> templates or language-model coaching (optional)
+  -> output validation
+  -> user feedback
 ```
 
 | Stage | Responsibility |
 |---|---|
 | Capture | Record a short exercise clip |
-| Validation | Check exercise, duration, format, size, and basic media quality |
-| Vision provider | Return timestamped observations, estimates, and confidence |
-| Analysis engine | Normalize evidence, apply rules, and prioritize findings |
-| Coaching layer | Explain only the approved findings |
-| Final validation | Reject unsupported, unsafe, or invalid output |
+| Input validation | Check duration, format, size, and basic media quality |
+| CV or pose stage | Produce measurements or select evidence when included |
+| VLM stage | Return evidence-linked visual observations when included |
+| Analysis stage | Normalize evidence and apply deterministic rules when included |
+| Coaching stage | Present approved findings using templates or an LLM |
+| Output validation | Check structure, evidence references, and allowed content |
 
-The analysis engine is the source of truth for findings, severity, priority, and
-confidence. The coaching layer may change wording, not evidence.
+Explicit contracts between included stages help distinguish measured evidence,
+model observations, validated findings, and presentation text.
 
 ## Relevant Tools
 
-| Tool | Role in Calis App |
+| Tool | Possible role |
 |---|---|
-| Browser MediaRecorder API | MVP video capture |
-| Gemini video-capable model | Preferred MVP source of temporal observations |
-| MediaPipe Pose Landmarker | Later browser quality gate for framing and body visibility |
-| MoveNet | Possible alternative browser pose model |
-| YOLO-Pose | Possible browser or server pose model; commonly server-hosted |
-| OpenPose | Possible browser or server pose system; commonly server-hosted |
-| FFmpeg | Optional server-side media conversion or frame extraction |
+| Browser MediaRecorder API | Browser video capture |
+| Gemini video-capable model | VLM analysis of native video or image evidence |
+| MediaPipe Pose Landmarker | Browser or server pose estimation and quality checks |
+| MoveNet | Browser or server pose estimation |
+| YOLO-Pose | Multi-person pose estimation, commonly server-hosted |
+| OpenPose | Detailed pose estimation, commonly server-hosted |
+| FFmpeg | Media conversion or frame extraction |
 | CVAT or Label Studio | Test-data annotation and output review |
 
 MMPose, TensorFlow.js, ONNX Runtime Web, and image-capable providers remain
-possible research or fallback options. They are not required for the MVP.
-Specific models, versions, formats, quotas, prices, browser support, and
-licenses must be verified during implementation.
-
-## Recommended MVP Approach
-
-1. Record short clips with the browser MediaRecorder API.
-2. Validate media in a Next.js route handler.
-3. Send the transient clip to Gemini through a server-side provider adapter.
-4. Normalize observations, estimated reps and phases, media-quality indicators,
-   and confidence.
-5. Apply deterministic rules for push-ups, squats, planks, lunges, and hollow
-   holds.
-6. Give the LLM only structured analysis evidence.
-7. Validate the coaching and show positive findings plus one or two corrections.
-8. Discard raw video after processing and store only required metadata and
-   feedback.
-
-Browser-side MediaPipe is deferred to a later pre-submission quality gate. It is
-not the primary MVP analyzer.
+possible research alternatives. Specific selections belong in the candidate
+evaluation or a later accepted architecture decision. Versions, formats,
+quotas, prices, browser support, and licenses can change and require verification
+during implementation.
 
 ## Limits and Safety
 
+This section summarizes technical limitations; it does not define product
+policy. The [Product Spec](PRODUCT_SPEC.md) is authoritative for safety, privacy,
+consent, retention, and user-facing claims.
+
 - Camera angle, lighting, occlusion, clothing, framing, and motion speed affect
   accuracy.
-- Single-camera measurements and provider observations are estimates, not
-  clinical or pose-grade measurements.
-- Fast movement requires testing because video providers may sample frames.
-- Exercise rules require validation with varied recordings.
-- Insufficient evidence should produce a retry request, not confident feedback.
-- Feedback must describe visible movement and avoid diagnoses or medical advice.
-- Raw video must be transient by default and excluded from logs.
-- Movement data should be separated from direct identity.
-- Users must explicitly opt in before their first analysis.
-- Display: "This app is not medical or physiotherapy advice."
+- Single-camera measurements and model observations are estimates, not clinical
+  or motion-capture-grade measurements.
+- Sparse frame selection can miss fast transitions, extrema, or brief form
+  issues.
+- Pose landmarks can be incorrect even when their reported confidence is high.
+- Structured VLM output can be syntactically valid while containing an
+  unsupported visual claim.
+- Exercise rules and confidence policies require validation with varied,
+  human-labeled recordings.
+- Sending frames or video to a provider creates different privacy and retention
+  considerations from on-device processing.

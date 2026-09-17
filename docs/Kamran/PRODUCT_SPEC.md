@@ -1,5 +1,13 @@
 # Product Spec
 
+| Field | Value |
+|---|---|
+| Status | Canonical product specification |
+| Owns | Product scope, target users, supported exercises, core UX, privacy, safety, and success criteria |
+| Does not own | Architecture selection, provider choice, media packaging, implementation design, or option scoring |
+| Last reviewed | 2026-08-24 |
+| Precedence | For product-scope conflicts within `docs/Kamran`, this file takes precedence; architecture remains undecided |
+
 ## Table of Contents
 
 - [Product](#product)
@@ -16,7 +24,7 @@
 
 ## Product
 
-Calis App is a Next.js web app with PWA capabilities that helps people improve
+Calis App is a web app with PWA capabilities that helps people improve
 calisthenics form at home through short-video analysis and supportive feedback.
 
 ```txt
@@ -68,11 +76,13 @@ Required capabilities:
 | Safety | Validate supported scope and non-medical language |
 
 Later features may include before-and-after comparison, reminders, manual notes,
-broader exercise support, optional scoring, and consent-based video retention.
+broader exercise support, optional scoring, consent-based video retention,
+confidence-gated live CV audio cues, and spoken post-set summaries.
 
 Out of scope:
 
-- live form correction
+- continuous live form correction; any later live audio cues must be short,
+  infrequent, confidence-gated, and delivered within a validated latency target
 - medical diagnosis, treatment, or rehabilitation
 - workout or nutrition planning as the main flow
 - social feeds, leaderboards, or competitive rankings
