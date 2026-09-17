@@ -1,10 +1,14 @@
 .env
 .venv/
+.venv-system-site/
+.smoke/
 __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
 artifacts/
+validation_data/
+reports/
 models/*.task
 *.pyc
-
+*.egg-info/
