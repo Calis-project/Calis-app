@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Docs](#docs)
-
+- 
 Calis App is a Next.js web app with PWA capabilities for AI-assisted calisthenics form analysis. Users record or upload a short exercise video, receive structured feedback on common form mistakes, and use supportive progress tracking to improve over time.
 
 The MVP focuses on short-video analysis for push-up, squat, plank, lunge, and hollow hold. Videos are intended to be analyzed transiently and discarded by default; saved history stores feedback and metadata rather than raw video.
