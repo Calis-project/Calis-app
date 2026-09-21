@@ -1,0 +1,12 @@
+[
+  {"file": "valid_01.mp4", "ground_truth": "VALID"},
+  {"file": "valid_02.mp4", "ground_truth": "VALID"},
+  {"file": "valid_03.mp4", "ground_truth": "VALID"},
+  {"file": "valid_04.mp4", "ground_truth": "VALID"},
+  {"file": "valid_05.mp4", "ground_truth": "VALID"},
+  {"file": "sag_01.mp4", "ground_truth": "HIP_SAG"},
+  {"file": "sag_02.mp4", "ground_truth": "HIP_SAG"},
+  {"file": "sag_03.mp4", "ground_truth": "HIP_SAG"},
+  {"file": "sag_04.mp4", "ground_truth": "HIP_SAG"},
+  {"file": "sag_05.mp4", "ground_truth": "HIP_SAG"}
+]
