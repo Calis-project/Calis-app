@@ -1,8 +1,8 @@
 import os
 import yaml
 from pathlib import Path
+from typing import Dict, Any, Tuple
 
-# Distinct palette per team member
 MEMBER_PALETTES = {
     "Mehrnaz": {"fill": "#2E1065", "stroke": "#A78BFA", "text": "#EDE9FE"},
     "Mamad":   {"fill": "#451A03", "stroke": "#F59E0B", "text": "#FEF3C7"},
@@ -17,89 +17,159 @@ STATUS_ICONS = {
     "TODO": "⏳",
     "IN_PROGRESS": "🔄",
     "BLOCKED": "🚫",
-    "READY_FOR_REVIEW": "👀",
+    "CHANGES_REQUESTED": "⚠️",
+    "VERIFIED_ON_DISK": "🔍",
+    "HARNESS_READY": "⚙️",
     "DONE": "✅"
 }
 
-def load_reports(folder_path: str):
-    reports = []
-    path = Path(folder_path)
-    for file_path in path.glob("*.yaml"):
-        with open(file_path, "r", encoding="utf-8") as stream:
-            data = yaml.safe_load(stream)
-            if data and "task_id" in data:
-                reports.append(data)
-    return reports
+# Contract rules: keywords each deliverable target must satisfy
+TARGET_KEYWORD_RULES = {
+    "TSK-01": ["sagittal", "tripod", "40cm"],
+    "TSK-02": [".mp4"],
+    "TSK-03": ["mediapipe", "pose"],
+    "TSK-04": ["hip_sag", "no_rep_depth"],
+    "TSK-05": ["cues", "status"],
+    "TSK-06": ["camera", "flutter"],
+    "TSK-07": ["pytest", "test_"]
+}
 
-def build_mermaid_graph(reports):
-    chart = [
+# Inherent pipeline sequence extracted from sprint architecture contracts
+TASK_FLOW_SEQUENCE = [
+    ("TSK-01", "TSK-04", "Angles Spec"),
+    ("TSK-01", "TSK-06", "Camera Constraints"),
+    ("TSK-02", "TSK-03", "Video Clips Feed"),
+    ("TSK-03", "TSK-04", "Landmark Stream"),
+    ("TSK-05", "TSK-04", "Schema Contract"),
+    ("TSK-04", "TSK-07", "Rule Verification"),
+    ("TSK-02", "TSK-07", "Test Inputs")
+]
+
+def load_sprint_spec(spec_path: str) -> Dict[str, Any]:
+    with open(spec_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+def inspect_task_on_disk(target_path: Path, keywords: list) -> Tuple[bool, list]:
+    """Inspects file/directory existence and scans for mandatory contract keywords."""
+    if not target_path.exists():
+        return False, []
+
+    matched = []
+    if target_path.is_dir():
+        dir_files = [f.name.lower() for f in target_path.glob("*")]
+        for kw in keywords:
+            if any(kw.lower() in fname for fname in dir_files):
+                matched.append(kw)
+        return True, matched
+    else:
+        try:
+            content = target_path.read_text(encoding="utf-8", errors="ignore").lower()
+            for kw in keywords:
+                if kw.lower() in content:
+                    matched.append(kw)
+        except Exception:
+            pass
+        return True, matched
+
+def determine_dynamic_status(task_id: str, matrix_item: dict, base_dir: Path) -> Tuple[str, str]:
+    target_rel = matrix_item.get("target", "")
+    target_full = base_dir / target_rel
+    req_keywords = TARGET_KEYWORD_RULES.get(task_id, [])
+
+    exists, matched_kw = inspect_task_on_disk(target_full, req_keywords)
+    default_status = matrix_item.get("status", "TODO")
+
+    if exists:
+        if set(req_keywords).issubset(set(matched_kw)) and len(req_keywords) > 0:
+            return "VERIFIED_ON_DISK", f"Matched: {', '.join(matched_kw)}"
+        return "IN_PROGRESS", f"Present; missing keywords"
+
+    return default_status, f"Awaiting: {target_rel}"
+
+def build_automated_mermaid(sprint_data: Dict[str, Any], project_root: Path) -> str:
+    matrix = sprint_data.get("github_issue_matrix", {})
+    blockers = sprint_data.get("current_sprint_state", {}).get("current_blockers", [])
+
+    lines = [
         "```mermaid",
         "graph TD",
         "    %% Global Node Styles"
     ]
-    
-    # 1. Define color styles for each team member
+
     for member, colors in MEMBER_PALETTES.items():
-        chart.append(
+        lines.append(
             f"    classDef style_{member} fill:{colors['fill']},stroke:{colors['stroke']},stroke-width:2px,color:{colors['text']};"
         )
-    chart.append("    classDef blockedNode fill:#7F1D1D,stroke:#DC2626,stroke-width:3px,color:#FEE2E2,stroke-dasharray: 5 5;")
+    lines.append("    classDef blockedNode fill:#7F1D1D,stroke:#DC2626,stroke-width:3px,color:#FEE2E2,stroke-dasharray: 5 5;")
+    lines.append("    classDef verifiedNode fill:#064E3B,stroke:#059669,stroke-width:3px,color:#ECFDF5;")
 
-    chart.append("\n    %% Tasks & Active Branches")
-    # 2. Add task nodes
-    for item in reports:
-        raw_id = item["task_id"]
-        safe_id = raw_id.replace("-", "_")
-        owner = item.get("owner", "Unassigned")
-        status = item.get("status", "TODO")
-        branch = item.get("branch", "N/A")
-        icon = STATUS_ICONS.get(status, "⏳")
+    lines.append("\n    %% Automated Task States")
+    task_statuses = {}
 
-        label = f"\"{icon} <b>{raw_id}: {owner}</b><br/><code>{branch}</code><br/>Status: <i>{status}</i>\""
-        chart.append(f"    {safe_id}[{label}]")
+    for task_id, info in matrix.items():
+        owner = info.get("owner", "Unassigned")
+        branch = info.get("branch", "N/A")
+        safe_id = task_id.replace("-", "_")
 
-    chart.append("\n    %% Task Dependencies")
-    # 3. Add directional edges
-    for item in reports:
-        target_id = item["task_id"].replace("-", "_")
-        deps = item.get("blockers_and_dependencies", {}).get("dependencies", [])
-        if deps:
-            for dep in deps:
-                clean_dep = dep.replace("-", "_")
-                chart.append(f"    {clean_dep} ==>|Blocks| {target_id}")
+        computed_status, note = determine_dynamic_status(task_id, info, project_root)
 
-    chart.append("\n    %% Apply Member Colors")
-    # 4. Color-code nodes by owner or blocked status
-    for item in reports:
-        safe_id = item["task_id"].replace("-", "_")
-        owner = item.get("owner", "")
-        status = item.get("status", "")
-        
+        if any(task_id in b or info.get("issue") in b for b in blockers):
+            computed_status = "BLOCKED"
+
+        task_statuses[task_id] = computed_status
+        icon = STATUS_ICONS.get(computed_status, "⏳")
+
+        label = f"\"{icon} <b>{task_id}: {owner}</b><br/><code>{branch}</code><br/>Status: <i>{computed_status}</i><br/><small>{note}</small>\""
+        lines.append(f"    {safe_id}[{label}]")
+
+    lines.append("\n    %% Pipeline Sequence & Dependencies")
+    for src, dst, label in TASK_FLOW_SEQUENCE:
+        src_safe = src.replace("-", "_")
+        dst_safe = dst.replace("-", "_")
+        src_status = task_statuses.get(src, "TODO")
+
+        if src_status in ["BLOCKED", "CHANGES_REQUESTED"]:
+            lines.append(f"    {src_safe} ==x|Blocked by {src}| {dst_safe}")
+        else:
+            lines.append(f"    {src_safe} -->|{label}| {dst_safe}")
+
+    lines.append("\n    %% Styling Assignments")
+    for task_id, info in matrix.items():
+        safe_id = task_id.replace("-", "_")
+        owner = info.get("owner", "")
+        status = task_statuses.get(task_id, "")
+
         if status == "BLOCKED":
-            chart.append(f"    class {safe_id} blockedNode;")
+            lines.append(f"    class {safe_id} blockedNode;")
+        elif status == "VERIFIED_ON_DISK":
+            lines.append(f"    class {safe_id} verifiedNode;")
         elif owner in MEMBER_PALETTES:
-            chart.append(f"    class {safe_id} style_{owner};")
+            lines.append(f"    class {safe_id} style_{owner};")
 
-    chart.append("```")
-    return "\n".join(chart)
+    lines.append("```")
+    return "\n".join(lines)
 
 def main():
-    reports_dir = "docs/06_feedback/reports"
-    output_doc = "docs/07_architecture/workflow_map.md"
+    project_root = Path(__file__).resolve().parents[2]
+    sprint_spec_file = project_root / "docs" / "07_architecture" / "sprint_01.yaml"
+    output_doc = project_root / "docs" / "07_architecture" / "workflow_map.md"
 
-    reports = load_reports(reports_dir)
-    if not reports:
-        print(f"[WARN] No YAML reports found in {reports_dir}. Exiting.")
+    if not sprint_spec_file.exists():
+        sprint_spec_file = project_root / "sprint_01.yaml"
+
+    if not sprint_spec_file.exists():
+        print(f"[ERROR] Sprint spec not found at {sprint_spec_file}")
         return
 
-    mermaid_code = build_mermaid_graph(reports)
+    sprint_data = load_sprint_spec(str(sprint_spec_file))
+    diagram = build_automated_mermaid(sprint_data, project_root)
 
     with open(output_doc, "w", encoding="utf-8") as f:
-        f.write("# Sprint 01: Team Workflow & Dependency Map\n\n")
-        f.write("> **Internal Tool Notice:** Generated automatically by `src/internal_tools/workflow_agent.py`.\n\n")
-        f.write(mermaid_code + "\n")
+        f.write("# Sprint 01: Automated Live Workflow & Dependency Engine\n\n")
+        f.write("> **Zero-Manual-Tracking Notice:** Generated dynamically via disk inspections against `sprint_01.yaml`.\n\n")
+        f.write(diagram + "\n")
 
-    print(f"[SUCCESS] Updated visual workflow written to {output_doc}")
+    print(f"[SUCCESS] Workflow dynamically generated at: {output_doc}")
 
 if __name__ == "__main__":
     main()
