@@ -1,0 +1,8 @@
+task_id: "TSK-03"
+issue: "#5"
+owner: "Danny"
+branch: "feat/issue-5-pose-extractor"
+status: "BLOCKED"
+blockers_and_dependencies:
+  dependencies:
+    - "TSK-02"
