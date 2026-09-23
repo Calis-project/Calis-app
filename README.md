@@ -1,18 +1,30 @@
-# Calis App
+# Calis-App: On-Device AI Calisthenics Coach
 
-## Table of Contents
+An edge-first, privacy-focused mobile application built with **Flutter** and **MediaPipe** providing real-time biomechanical form analysis and corrective audio/visual cues for calisthenics exercises.
 
-- [Docs](#docs)
-- 
-Calis App is a Next.js web app with PWA capabilities for AI-assisted calisthenics form analysis. Users record or upload a short exercise video, receive structured feedback on common form mistakes, and use supportive progress tracking to improve over time.
+---
 
-The MVP focuses on short-video analysis for push-up, squat, plank, lunge, and hollow hold. Videos are intended to be analyzed transiently and discarded by default; saved history stores feedback and metadata rather than raw video.
+## Architecture & Core Tech Stack
 
-## Docs
+- **Client:** Flutter (Dart) — High-FPS camera preview, on-screen skeletal overlay, state-driven UI cues.
+- **Vision Engine:** MediaPipe Pose Landmark Detection — Executed purely on-device (Zero cloud streaming, Zero GPU hosting costs).
+- **Biomechanics Engine:** Deterministic 2D/3D Kinematic Rule Engine calculating joint angles, phase states, and form deviations (e.g., `HIP_SAG`, `NO_REP_DEPTH`).
+- **Data Privacy:** Video frames are analyzed transiently in device RAM and instantly discarded (GDPR-compliant by design).
 
-- [Product Spec](docs/Kamran/PRODUCT_SPEC.md) - product vision, MVP scope, user flows, feedback UX, privacy, safety, and tone.
-- [Technical Plan](docs/Kamran/TECHNICAL_PLAN.md) - Next.js App Router architecture, PWA capabilities, backend AI analysis service, data model, APIs, privacy controls, and build order.
-- [Roadmap and Decisions](docs/Kamran/ROADMAP_AND_DECISIONS.md) - MVP roadmap, later AI options, safety architecture, and key product/technical decisions.
-- [AI Movement Analysis Concepts and Tools](docs/Kamran/AI_MOVEMENT_ANALYSIS_CONCEPTS.md) - beginner-friendly definitions, the analysis pipeline, representative tools, and their roles.
-- [AI Movement Analysis Stack Report](docs/Kamran/AI_Movement_Analysis_Stack_Report.md) - technical options, cost considerations, privacy tradeoffs, and the recommended analysis stack.
-- [Candidate Architecture Patterns and Evaluation Plan](docs/Kamran/CANDIDATE_ARCHITECTURE_PATTERNS_AND_EVALUATION_PLAN.md) - fresh MVP architecture candidates, CV options, scope priorities, validation gates, and final-decision questions.
+---
+
+## Project Status: Sprint 01 Complete (Golden Spike POC)
+
+- **Benchmark Accuracy:** Achieved **80.0%** classification accuracy on reference sagittal push-up dataset.
+- **Inference Latency:** ~14 ms/frame on standard CPU (capable of 70+ FPS).
+- **Next Milestone:** Sprint 02 — Flutter Camera Integration & On-Device Dart/C++ Bridge.
+
+---
+
+## Documentation Navigation
+
+Detailed engineering and product documentation can be found in the `docs/` directory:
+- `docs/01_product/pushup_prd.md` — Push-up biomechanical criteria and user flows.
+- `docs/02_vision/ROADMAP.md` — Multi-phase product roadmap.
+- `docs/07_architecture/golden_spike_report.md` — Benchmark report and latency analysis.
+- `docs/07_architecture/sprint_01_state.yaml` — Real-time machine-readable sprint registry.
