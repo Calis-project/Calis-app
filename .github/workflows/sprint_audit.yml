@@ -1,0 +1,57 @@
+name: Sprint Workflow & Architecture Audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'internal/**'
+      - 'feat/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write # Allows the action to commit updated docs back to the repo
+
+jobs:
+  audit-and-map:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml openai
+
+      - name: Run AI-Powered Workflow & Audit Agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python src/internal_tools/workflow_agent.py
+
+      - name: Commit & Push Updated Workflow Artifacts
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Stage only the generated artifacts
+          git add docs/07_architecture/workflow_map.md docs/07_architecture/sprint_progress_report.md
+          
+          # Commit only if changes were generated
+          if git diff --staged --quiet; then
+            echo "No changes in sprint architecture maps."
+          else
+            git commit -m "chore(ci): update sprint workflow map & progress report [skip ci]"
+            git push
+          fi
