@@ -8,29 +8,33 @@ import json
 import os
 import sys
 
+# اضافه کردن پوشه اصلی پروژه به مسیرهای پایتون (رفع باگ ایمپورت)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # شبیه‌سازی پایپ‌لاین در صورت آماده نبودن کدهای دانی و کامران
 try:
     from src.vision.pose_extractor import extract_landmarks
     from src.biomechanics.pushup_rules import evaluate_pushup_stream
     MOCK_MODE = False
-except ImportError:
-    print("[WARN] Real modules not detected yet. Running in MOCK mode for pipeline validation.")
+except ImportError as e:
+    print(f"[WARN] Real modules not detected ({e}). Running in MOCK mode for pipeline validation.")
     MOCK_MODE = True
 
 
 def mock_pipeline(video_path):
     """تابع شبیه‌ساز موقت تا زمان اتصال کدهای اصلی"""
-    # به عنوان تست موقت، بر اساس نام فایل حدس می‌زند
     if "sag" in video_path.lower():
         return {"detected_error": "HIP_SAG", "is_valid": False}
     return {"detected_error": None, "is_valid": True}
 
 
 def run_benchmark():
-    dataset_dir = os.path.join(os.path.dirname(__file__), "..", "dataset", "raw")
+    dataset_dir = os.path.join(PROJECT_ROOT, "dataset", "raw")
     metadata_path = os.path.join(dataset_dir, "metadata.json")
 
-    # بررسی وجود دیتاست مامد
+    # بررسی وجود دیتاست
     if not os.path.exists(metadata_path):
         print(f"[INFO] metadata.json not found at {metadata_path}. Generating dummy test cases.")
         test_cases = [
