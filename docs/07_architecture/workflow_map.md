@@ -16,12 +16,12 @@ graph TD
     classDef verifiedNode fill:#064E3B,stroke:#059669,stroke-width:3px,color:#ECFDF5;
 
     %% Tasks
-    TSK_01["⏳ <b>TSK-01: Mehrnaz</b><br/><code>feat/issue-3-prd</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>Not Started</i>"]
-    TSK_02["⏳ <b>TSK-02: Mamad</b><br/><code>feat/issue-4-dataset</code><br/>Progress: <b>75%</b> [██████░░]<br/>Status: <i>Addressing Changes: Raw dataset populated, pending content verification.</i>"]
-    TSK_03["⏳ <b>TSK-03: Danny</b><br/><code>feat/issue-5-pose-extractor</code><br/>Progress: <b>90%</b> [███████░]<br/>Status: <i>On Track</i>"]
-    TSK_04["⏳ <b>TSK-04: Kamran</b><br/><code>feat/issue-6-pushup-rules</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>Not Started / Blocked</i>"]
-    TSK_05["⏳ <b>TSK-05: Hessam</b><br/><code>feat/issue-7-feedback-schema</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>TODO</i>"]
-    TSK_06["⏳ <b>TSK-06: Arash</b><br/><code>feat/issue-8-flutter-camera</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>The declared status of 'TODO' is consistent with the provided artifact evidence. The 'mobile/' directory contains only a '.gitkeep' file, indicating that no functional code or project setup for the mobile target has been committed or initiated.</i>"]
+    TSK_01["⏳ <b>TSK-01: Mehrnaz</b><br/><code>feat/issue-3-prd</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>Not Started (Artifact Missing)</i>"]
+    TSK_02["⏳ <b>TSK-02: Mamad</b><br/><code>feat/issue-4-dataset</code><br/>Progress: <b>75%</b> [██████░░]<br/>Status: <i>CHANGES_REQUESTED - Dataset populated with initial video artifacts, but further refinement and validation are needed.</i>"]
+    TSK_03["⏳ <b>TSK-03: Danny</b><br/><code>feat/issue-5-pose-extractor</code><br/>Progress: <b>95%</b> [███████░]<br/>Status: <i>Ready for Review (Functionally Complete)</i>"]
+    TSK_04["⏳ <b>TSK-04: Kamran</b><br/><code>feat/issue-6-pushup-rules</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>Not Started - Artifact Missing</i>"]
+    TSK_05["⏳ <b>TSK-05: Hessam</b><br/><code>feat/issue-7-feedback-schema</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>Not Started - Artifact Missing</i>"]
+    TSK_06["⏳ <b>TSK-06: Arash</b><br/><code>feat/issue-8-flutter-camera</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>TODO</i>"]
     TSK_07["⚙️ <b>TSK-07: Ramin</b><br/><code>feat/issue-9-golden-spike-test</code><br/>Progress: <b>0%</b> [░░░░░░░░]<br/>Status: <i>HARNESS_READY</i>"]
 
     %% Pipeline Sequence
