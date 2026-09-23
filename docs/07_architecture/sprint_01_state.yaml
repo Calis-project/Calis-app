@@ -1,5 +1,5 @@
 # ==============================================================================
-# CALIS-APP: AI-DRIVEN CALISTHENICS RECOGNITION (VIBE-CODING PROJECT BRAIN V2)
+# CALIS-APP: AI-DRIVEN CALISTHENICS RECOGNITION (PROJECT BRAIN V3 - GOLDEN SPIKE PASSED)
 # ==============================================================================
 
 meta:
@@ -20,24 +20,28 @@ architecture_contracts:
   camera_anchor: "Sagittal plane (pure side 90 deg), distance 2.0-2.5m, height 40cm, tripod"
 
 github_issue_matrix:
-  # Attention: GitHub Issue numbers start at #3 due to legacy items
-  TSK-01: { issue: "#3", owner: "Mehrnaz", branch: "feat/issue-3-prd", target: "docs/01_product/pushup_prd.md", status: "TODO" }
-  TSK-02: { issue: "#4", owner: "Mamad", branch: "feat/issue-4-dataset", target: "dataset/raw/", status: "CHANGES_REQUESTED" }
-  TSK-03: { issue: "#5", owner: "Danny", branch: "feat/issue-5-pose-extractor", target: "src/vision/pose_extractor.py", status: "TODO" }
-  TSK-04: { issue: "#6", owner: "Kamran", branch: "feat/issue-6-pushup-rules", target: "src/biomechanics/pushup_rules.py", status: "TODO" }
-  TSK-05: { issue: "#7", owner: "Hessam", branch: "feat/issue-7-feedback-schema", target: "src/feedback/feedback_schema.json", status: "TODO" }
-  TSK-06: { issue: "#8", owner: "Arash", branch: "feat/issue-8-flutter-camera", target: "mobile/", status: "TODO" }
-  TSK-07: { issue: "#9", owner: "Ramin", branch: "feat/issue-9-golden-spike-test", target: "tests/test_golden_spike.py", status: "HARNESS_READY" }
+  TSK-01: { issue: "#3", owner: "Mehrnaz", branch: "feat/issue-3-prd", target: "docs/01_product/pushup_prd.md", status: "MERGED" }
+  TSK-02: { issue: "#4", owner: "Mamad", branch: "feat/issue-4-dataset", target: "dataset/raw/", status: "MERGED" }
+  TSK-03: { issue: "#5", owner: "Danny", branch: "feat/issue-5-pose-extractor", target: "src/vision/pose_extractor.py", status: "MERGED" }
+  TSK-04: { issue: "#6", owner: "Kamran", branch: "feat/issue-6-pushup-rules", target: "src/biomechanics/pushup_rules.py", status: "MERGED" }
+  TSK-05: { issue: "#7", owner: "Hessam", branch: "feat/issue-7-feedback-schema", target: "src/feedback/feedback_schema.json", status: "IN_PROGRESS" }
+  TSK-06: { issue: "#8", owner: "Arash", branch: "feat/issue-8-flutter-camera", target: "mobile/", status: "IN_PROGRESS" }
+  TSK-07: { issue: "#9", owner: "Ramin", branch: "feat/issue-9-golden-spike-test", target: "tests/test_golden_spike.py", status: "VERIFIED_80_PERCENT" }
 
 current_sprint_state:
   sprint_id: "Sprint 01: Golden Spike (Standard Push-up Form Accuracy)"
   dod_threshold: ">= 80% accuracy in detecting valid form vs HIP_SAG"
-  current_blockers:
-    - "PR #13 (Mamad): Blocked. Needs metadata.json and 3 more sagging clips placed in flat dataset/raw/"
+  status: "PASSED"
+  measured_accuracy: "80.0% (8/10 passed)"
+  measured_latency: "13.58 - 14.32 ms/frame on CPU"
+  current_blockers: []
   completed_assets:
-    - "Clean main branch with standardized directory layout"
-    - "README.md aligned with architecture specs"
-    - "tests/test_golden_spike.py operational with Mock Mode fallback (local execution validated)"
+    - "Benchmark raw dataset merged: 10 clips (5 valid, 5 sag) + metadata.json"
+    - "Vision pipeline merged: MediaPipe Pose Landmarker benchmarked at ~14ms/frame CPU latency (DoD < 35ms: PASS)"
+    - "Biomechanics rules engine merged: 2D vector trigonometry + push-up state machine"
+    - "Golden Spike integration test harness executed with live real-data inference (80.0% accuracy achieved)"
+    - "Product Requirements Document (PRD) merged at docs/01_product/pushup_prd.md"
+    - "Sprint 01 Closeout report archived at docs/07_architecture/golden_spike_report.md"
 
 biomechanical_spec:
   active_rules:
@@ -47,8 +51,11 @@ biomechanical_spec:
     incomplete_rom:
       definition: "min(elbow_angle[shoulder, elbow, wrist]) > 90 deg during descent"
       code: "NO_REP_DEPTH"
+    hip_pike:
+      definition: "angle(shoulder[11/12], hip[23/24], ankle[27/28]) > 195 deg"
+      code: "HIP_PIKE"
 
 next_immediate_actions:
-  step_1: "Wait for Mamad to fix PR #13 (flatten files to dataset/raw/, add metadata.json, reach 10 clips), then review & merge."
-  step_2: "Review Danny's MediaPipe PR (TSK-03) and Kamran's Kinematics PR (TSK-04) upon submission."
-  step_3: "Integrate real modules into tests/test_golden_spike.py, run evaluation, and output docs/07_architecture/golden_spike_report.md."
+  step_1: "Incorporate temporal smoothing (3 consecutive frames) to eliminate false positives in valid_04/valid_05."
+  step_2: "Review Hessam's feedback JSON contract (TSK-05) by Sep 23 deadline."
+  step_3: "Kick off Sprint 02 planning: Flutter Camera Stream & Edge Model Integration."
