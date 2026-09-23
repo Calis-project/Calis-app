@@ -1,0 +1,22 @@
+Audit the following task deliverable for the sprint:
+
+TASK METADATA:
+- Task ID: {task_id}
+- Assignee: {owner}
+- Area: {role}
+- Target Path: {target_path}
+- Sprint Backlog Declared Status: {declared_status}
+
+ACTUAL ARTIFACT EVIDENCE ON DISK:
+{artifact_content}
+
+
+Evaluate actual implementation depth and return strictly valid JSON matching this schema:
+{
+  "completion_percentage": <integer 0-100>,
+  "dynamic_status": "TODO" | "IN_PROGRESS" | "BLOCKED" | "VERIFIED",
+  "technical_critique": "<2 sentences evaluating real logic vs stubs>",
+  "key_achievements": ["<what is working>"],
+  "gaps_and_risks": ["<missing logic or edge case risks>"],
+  "standup_question": "<1 precise technical question to ask the assignee>"
+}
