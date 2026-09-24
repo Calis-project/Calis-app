@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calisapp.dev/schemas/feedback_schema.json",
+  "title": "FeedbackMessage",
+  "description": "Data contract emitted by the rules engine (src/feedback/pushup.py) for direct consumption by the mobile client. Field names and enums are aligned to the engine's actual state machine (evaluate_pushup_stream). Fields are exhaustive and non-nullable to avoid ambiguous handling on the client side. NOTE: as of this version, pushup.py returns ONE summary object per evaluated clip rather than one message per frame/transition, and only detects HIP_SAG. See docs/06_feedback/cues_matrix.md §4 'Engine Changes Required' for the gaps this schema exposes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rep_count", "state", "is_valid", "error_code", "cue_text"],
+  "properties": {
+    "rep_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of completed repetitions. In pushup.py this increments only on the ASCENDING -> PLANK transition (elbow_angle > 150.0 after having passed through BOTTOM), i.e. a full-depth rep."
+    },
+    "state": {
+      "type": "string",
+      "description": "Current node of the engine's state machine, exactly as emitted by evaluate_pushup_stream in pushup.py.",
+      "enum": [
+        "IDLE",
+        "PLANK",
+        "DESCENDING",
+        "BOTTOM",
+        "ASCENDING"
+      ]
+    },
+    "is_valid": {
+      "type": "boolean",
+      "description": "false whenever error_code is not NONE. In the current pushup.py implementation this flag is sticky for the whole evaluated stream (set to false on the first HIP_SAG frame and never reset), so it reports 'was this clip ever invalid', not 'is this exact frame valid'. Per-frame reset is required before this can drive live in-session cues (PRD-EX-001 Phase 3) -- see cues_matrix.md §4."
+    },
+    "error_code": {
+      "type": "string",
+      "description": "Single active error. NONE is used instead of null so the client never branches on a missing field. Only HIP_SAG is currently detected by pushup.py; NO_REP_DEPTH is part of this contract per task scope but is not yet set anywhere in the engine (the DESCENDING -> PLANK 'abandoned rep' branch needs it -- see cues_matrix.md §3 and §4). Codes from the wider PRD-EX-001 §5 catalog (HIP_PIKE, PARTIAL_LOCKOUT, OCCLUSION) are intentionally out of scope for this schema version and are not valid values here; adding them is an additive, non-breaking schema change for a later sprint.",
+      "enum": [
+        "NONE",
+        "HIP_SAG",
+        "NO_REP_DEPTH"
+      ]
+    },
+    "cue_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "Short, unambiguous corrective or status text for on-screen/audio display, sourced verbatim from docs/06_feedback/cues_matrix.md. Empty string is not permitted -- use \"Good form\" when is_valid is true and error_code is NONE."
+    }
+  },
+  "examples": [
+    {
+      "rep_count": 3,
+      "state": "DESCENDING",
+      "is_valid": false,
+      "error_code": "HIP_SAG",
+      "cue_text": "Core tight, lift hips"
+    },
+    {
+      "rep_count": 4,
+      "state": "PLANK",
+      "is_valid": false,
+      "error_code": "NO_REP_DEPTH",
+      "cue_text": "Go lower next rep"
+    },
+    {
+      "rep_count": 4,
+      "state": "ASCENDING",
+      "is_valid": true,
+      "error_code": "NONE",
+      "cue_text": "Good form"
+    }
+  ]
+}
