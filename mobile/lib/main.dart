@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:calis_mobile/core/pose_landmark_bridge.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,8 +58,21 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   late CameraController _controller;
+  final PoseLandmarkBridge _poseBridge = PoseLandmarkBridge();
   int _frameCount = 0;
   double _fps = 0.0;
+  double _poseFps = 0.0;
+  int _processedFrames = 0;
+  int _framesWithLandmarks = 0;
+  int _skippedFrames = 0;
+  int _lastSkippedFrames = 0;
+  int _landmarkCount = 0;
+  int _totalProcessingMs = 0;
+  int _maxProcessingMs = 0;
+  bool _poseBusy = false;
+  String? _poseError;
+  Future<void>? _inFlightFrame;
+  Future<void>? _cameraDisposal;
   final Stopwatch _stopwatch = Stopwatch();
   int? _lastFrameTimestamp;
   int _fpsWindowStart = 0;
@@ -67,8 +84,11 @@ class _CameraScreenState extends State<CameraScreen> {
 
     _controller = CameraController(
       widget.camera,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
       enableAudio: false,
+      imageFormatGroup: Platform.isAndroid
+          ? ImageFormatGroup.yuv420
+          : ImageFormatGroup.bgra8888,
     );
     _initializeCamera();
   }
@@ -76,6 +96,8 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _initializeCamera() async {
     try {
       await _controller.initialize();
+      if (!mounted) return;
+      await _poseBridge.initialize();
       if (!mounted) return;
 
       _stopwatch.start();
@@ -97,28 +119,80 @@ class _CameraScreenState extends State<CameraScreen> {
         if (elapsedSeconds >= 1.0) {
           setState(() {
             _fps = _frameCount / elapsedSeconds;
+            _poseFps = _framesWithLandmarks / elapsedSeconds;
+            _lastSkippedFrames = _skippedFrames;
           });
-          debugPrint('Camera stream FPS: ${_fps.toStringAsFixed(1)}');
+          final averageMs = _processedFrames == 0
+              ? 0.0
+              : _totalProcessingMs / _processedFrames;
+          debugPrint(
+            'Camera FPS: ${_fps.toStringAsFixed(1)} | '
+            'pose frames: $_processedFrames | '
+            'landmark FPS: ${_poseFps.toStringAsFixed(1)} | '
+            'skipped while busy: $_skippedFrames | '
+            'pose ms avg/max: ${averageMs.toStringAsFixed(1)}/$_maxProcessingMs',
+          );
           _frameCount = 0;
+          _processedFrames = 0;
+          _framesWithLandmarks = 0;
+          _skippedFrames = 0;
+          _totalProcessingMs = 0;
+          _maxProcessingMs = 0;
           // Keep the clock continuous so frame intervals remain comparable.
           _fpsWindowStart = currentTimestamp;
         }
+
+        if (_poseError != null) return;
+        if (_poseBusy) {
+          _skippedFrames++;
+          return;
+        }
+        _poseBusy = true;
+        _inFlightFrame = _processFrame(image);
       });
 
       if (!mounted) return;
       setState(() {});
-    } on CameraException catch (error) {
+    } catch (error) {
       _stopwatch.stop();
       await _disposeCamera();
       if (!mounted) return;
-      setState(
-        () => _error =
-            '${error.code}: ${error.description ?? 'Camera initialization failed.'}',
-      );
+      setState(() => _error = error.toString());
     }
   }
 
-  Future<void> _disposeCamera() async {
+  Future<void> _processFrame(CameraImage image) async {
+    final timer = Stopwatch()..start();
+    try {
+      final landmarks = await _poseBridge.detect(
+        image,
+        widget.camera,
+        _controller.value.deviceOrientation,
+        _stopwatch.elapsedMilliseconds,
+      );
+      _processedFrames++;
+      _landmarkCount = landmarks.length;
+      if (landmarks.length == 5) _framesWithLandmarks++;
+    } catch (error) {
+      debugPrint('Pose detection stopped: $error');
+      if (mounted) {
+        setState(() => _poseError = error.toString());
+      } else {
+        _poseError = error.toString();
+      }
+    } finally {
+      timer.stop();
+      _totalProcessingMs += timer.elapsedMilliseconds;
+      if (timer.elapsedMilliseconds > _maxProcessingMs) {
+        _maxProcessingMs = timer.elapsedMilliseconds;
+      }
+      _poseBusy = false;
+    }
+  }
+
+  Future<void> _disposeCamera() => _cameraDisposal ??= _disposeCameraOnce();
+
+  Future<void> _disposeCameraOnce() async {
     // camera 0.12.1 dispose() does not cancel the Dart image subscription.
     try {
       if (_controller.value.isStreamingImages) {
@@ -127,6 +201,8 @@ class _CameraScreenState extends State<CameraScreen> {
     } catch (error) {
       debugPrint('Camera stream cleanup failed: $error');
     } finally {
+      if (_inFlightFrame != null) await _inFlightFrame;
+      await _poseBridge.close();
       try {
         await _controller.dispose();
       } catch (error) {
@@ -138,7 +214,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _stopwatch.stop();
-    _disposeCamera();
+    unawaited(_disposeCamera());
     super.dispose();
   }
 
@@ -172,13 +248,32 @@ class _CameraScreenState extends State<CameraScreen> {
           Positioned(
             top: 40,
             left: 16,
-            child: Text(
-              'FPS: ${_fps.toStringAsFixed(1)}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Camera: ${_fps.toStringAsFixed(1)} FPS',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'Landmarks: ${_poseFps.toStringAsFixed(1)} FPS '
+                  '($_landmarkCount joints)',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                Text(
+                  'Skipped while busy: $_lastSkippedFrames',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                if (_poseError != null)
+                  Text(
+                    'Pose error: $_poseError',
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+              ],
             ),
           ),
         ],
