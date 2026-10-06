@@ -57,8 +57,12 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
-  late CameraController _controller;
+  CameraController? _controller;
   final PoseLandmarkBridge _poseBridge = PoseLandmarkBridge();
+  NativeCameraInfo? _nativeCamera;
+  StreamSubscription<PoseDetectionEvent>? _nativeSubscription;
+  Timer? _fpsTimer;
+
   int _frameCount = 0;
   double _fps = 0.0;
   double _poseFps = 0.0;
@@ -69,6 +73,7 @@ class _CameraScreenState extends State<CameraScreen> {
   int _landmarkCount = 0;
   int _totalProcessingMs = 0;
   int _maxProcessingMs = 0;
+  String _frameSize = '';
   bool _poseBusy = false;
   String? _poseError;
   Future<void>? _inFlightFrame;
@@ -81,41 +86,97 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
-
-    _controller = CameraController(
-      widget.camera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-      imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.yuv420
-          : ImageFormatGroup.bgra8888,
-    );
     _initializeCamera();
   }
 
   Future<void> _initializeCamera() async {
     try {
-      await _controller.initialize();
-      if (!mounted) return;
       await _poseBridge.initialize();
       if (!mounted) return;
 
+      if (Platform.isAndroid) {
+        _nativeCamera = await _poseBridge.startNativeCamera();
+        if (!mounted) return;
+
+        _stopwatch.start();
+        _fpsWindowStart = _stopwatch.elapsedMilliseconds;
+        _frameSize = '${_nativeCamera!.width}x${_nativeCamera!.height}';
+
+        _nativeSubscription = _poseBridge.landmarkStream.listen((event) {
+          _frameCount++;
+          _processedFrames++;
+          _landmarkCount = event.landmarks.length;
+          if (event.landmarks.length == 5) _framesWithLandmarks++;
+          _totalProcessingMs += event.latencyMs;
+          if (event.latencyMs > _maxProcessingMs) {
+            _maxProcessingMs = event.latencyMs;
+          }
+        }, onError: (error) {
+          debugPrint('Native pose stream error: $error');
+          if (mounted) setState(() => _poseError = error.toString());
+        });
+
+        _fpsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!mounted) return;
+          final currentTimestamp = _stopwatch.elapsedMilliseconds;
+          final elapsedSeconds = (currentTimestamp - _fpsWindowStart) / 1000.0;
+          if (elapsedSeconds <= 0) return;
+          final currentFps = _frameCount / elapsedSeconds;
+          final currentPoseFps = _framesWithLandmarks / elapsedSeconds;
+          final averageMs = _processedFrames == 0
+              ? 0.0
+              : _totalProcessingMs / _processedFrames;
+          debugPrint(
+            'Native Camera FPS: ${currentFps.toStringAsFixed(1)} ($_frameSize) | '
+            'pose frames: $_processedFrames | '
+            'landmark FPS: ${currentPoseFps.toStringAsFixed(1)} | '
+            'native inference ms avg/max: ${averageMs.toStringAsFixed(1)}/$_maxProcessingMs',
+          );
+          setState(() {
+            _fps = currentFps;
+            _poseFps = currentPoseFps;
+          });
+          _frameCount = 0;
+          _processedFrames = 0;
+          _framesWithLandmarks = 0;
+          _totalProcessingMs = 0;
+          _maxProcessingMs = 0;
+          _fpsWindowStart = currentTimestamp;
+        });
+
+        setState(() {});
+        return;
+      }
+
+      // Fallback for non-Android platforms (e.g. tests or iOS):
+      final controller = CameraController(
+        widget.camera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.yuv420
+            : ImageFormatGroup.bgra8888,
+      );
+      _controller = controller;
+      await controller.initialize();
+      if (!mounted) return;
+
       _stopwatch.start();
-      await _controller.startImageStream((CameraImage image) {
+      await controller.startImageStream((CameraImage image) {
         if (!mounted) return;
         final currentTimestamp = _stopwatch.elapsedMilliseconds;
 
         if (_lastFrameTimestamp != null) {
           final frameInterval = currentTimestamp - _lastFrameTimestamp!;
-          // Diagnostic only: a long interval does not prove a dropped frame.
           if (frameInterval > 100) {
             debugPrint('Long frame interval (diagnostic): $frameInterval ms');
           }
         }
         _lastFrameTimestamp = currentTimestamp;
-        _frameCount++;
 
-        final elapsedSeconds = (currentTimestamp - _fpsWindowStart) / 1000.0;
+        _frameCount++;
+        final elapsedSeconds =
+            (currentTimestamp - _fpsWindowStart) / 1000.0;
         if (elapsedSeconds >= 1.0) {
           setState(() {
             _fps = _frameCount / elapsedSeconds;
@@ -126,7 +187,7 @@ class _CameraScreenState extends State<CameraScreen> {
               ? 0.0
               : _totalProcessingMs / _processedFrames;
           debugPrint(
-            'Camera FPS: ${_fps.toStringAsFixed(1)} | '
+            'Camera FPS: ${_fps.toStringAsFixed(1)} ($_frameSize) | '
             'pose frames: $_processedFrames | '
             'landmark FPS: ${_poseFps.toStringAsFixed(1)} | '
             'skipped while busy: $_skippedFrames | '
@@ -138,7 +199,6 @@ class _CameraScreenState extends State<CameraScreen> {
           _skippedFrames = 0;
           _totalProcessingMs = 0;
           _maxProcessingMs = 0;
-          // Keep the clock continuous so frame intervals remain comparable.
           _fpsWindowStart = currentTimestamp;
         }
 
@@ -162,12 +222,13 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _processFrame(CameraImage image) async {
+    _frameSize = '${image.width}x${image.height}';
     final timer = Stopwatch()..start();
     try {
       final landmarks = await _poseBridge.detect(
         image,
         widget.camera,
-        _controller.value.deviceOrientation,
+        _controller!.value.deviceOrientation,
         _stopwatch.elapsedMilliseconds,
       );
       _processedFrames++;
@@ -193,10 +254,9 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _disposeCamera() => _cameraDisposal ??= _disposeCameraOnce();
 
   Future<void> _disposeCameraOnce() async {
-    // camera 0.12.1 dispose() does not cancel the Dart image subscription.
     try {
-      if (_controller.value.isStreamingImages) {
-        await _controller.stopImageStream();
+      if (_controller?.value.isStreamingImages ?? false) {
+        await _controller!.stopImageStream();
       }
     } catch (error) {
       debugPrint('Camera stream cleanup failed: $error');
@@ -204,9 +264,9 @@ class _CameraScreenState extends State<CameraScreen> {
       if (_inFlightFrame != null) await _inFlightFrame;
       await _poseBridge.close();
       try {
-        await _controller.dispose();
+        await _controller?.dispose();
       } catch (error) {
-        debugPrint('Camera disposal failed: $error');
+        debugPrint('Camera dispose failed: $error');
       }
     }
   }
@@ -214,6 +274,11 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void dispose() {
     _stopwatch.stop();
+    _fpsTimer?.cancel();
+    _nativeSubscription?.cancel();
+    if (_nativeCamera != null) {
+      unawaited(_poseBridge.stopNativeCamera());
+    }
     unawaited(_disposeCamera());
     super.dispose();
   }
@@ -223,11 +288,22 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_error != null) {
       return Scaffold(body: Center(child: Text('Camera error: $_error')));
     }
-    if (!_controller.value.isInitialized) {
+
+    final isNative = _nativeCamera != null;
+    final isControllerReady =
+        _controller != null && _controller!.value.isInitialized;
+
+    if (!isNative && !isControllerReady) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final previewSize = _controller.value.previewSize!;
+    final double width = isNative
+        ? _nativeCamera!.width.toDouble()
+        : _controller!.value.previewSize!.width;
+    final double height = isNative
+        ? _nativeCamera!.height.toDouble()
+        : _controller!.value.previewSize!.height;
+
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     return Scaffold(
@@ -239,9 +315,11 @@ class _CameraScreenState extends State<CameraScreen> {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: landscape ? previewSize.width : previewSize.height,
-                height: landscape ? previewSize.height : previewSize.width,
-                child: CameraPreview(_controller),
+                width: landscape ? width : height,
+                height: landscape ? height : width,
+                child: isNative
+                    ? Texture(textureId: _nativeCamera!.textureId)
+                    : CameraPreview(_controller!),
               ),
             ),
           ),
@@ -252,7 +330,7 @@ class _CameraScreenState extends State<CameraScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Camera: ${_fps.toStringAsFixed(1)} FPS',
+                  'Camera: ${_fps.toStringAsFixed(1)} FPS ($_frameSize)',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -264,10 +342,11 @@ class _CameraScreenState extends State<CameraScreen> {
                   '($_landmarkCount joints)',
                   style: const TextStyle(color: Colors.white),
                 ),
-                Text(
-                  'Skipped while busy: $_lastSkippedFrames',
-                  style: const TextStyle(color: Colors.white),
-                ),
+                if (!isNative)
+                  Text(
+                    'Skipped while busy: $_lastSkippedFrames',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 if (_poseError != null)
                   Text(
                     'Pose error: $_poseError',

@@ -4,14 +4,24 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.view.Surface
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
+import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.view.TextureRegistry
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
@@ -23,14 +33,32 @@ class MainActivity : FlutterActivity() {
     private var pixelBuffer: IntArray? = null
     private var cachedBitmap: Bitmap? = null
 
+    // Native CameraX & Stream
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var surfaceTextureEntry: TextureRegistry.SurfaceTextureEntry? = null
+    private var eventSink: EventChannel.EventSink? = null
+    private var lastNativeTimestampMs = -1L
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "calis/pose_landmarks_stream")
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    eventSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    eventSink = null
+                }
+            })
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "calis/pose_landmarks")
             .setMethodCallHandler { call, reply ->
-                worker.execute {
-                    try {
-                        val value: Any? = when (call.method) {
-                            "initialize" -> {
+                when (call.method) {
+                    "initialize" -> {
+                        worker.execute {
+                            try {
                                 landmarker?.close()
                                 val modelBytes = call.arguments as ByteArray
                                 modelBuffer = ByteBuffer.allocateDirect(modelBytes.size).apply {
@@ -53,29 +81,148 @@ class MainActivity : FlutterActivity() {
                                 } catch (gpuError: Exception) {
                                     PoseLandmarker.createFromOptions(this, optionsBuilder(Delegate.CPU))
                                 }
-                                null
-                            }
-                            "detect" -> detect(call.arguments as Map<*, *>)
-                            "close" -> {
-                                landmarker?.close()
-                                landmarker = null
-                                modelBuffer = null
-                                cachedBitmap?.recycle()
-                                cachedBitmap = null
-                                pixelBuffer = null
-                                null
-                            }
-                            else -> {
-                                mainHandler.post { reply.notImplemented() }
-                                return@execute
+                                mainHandler.post { reply.success(null) }
+                            } catch (error: Exception) {
+                                mainHandler.post { reply.error("INIT_ERROR", error.message, null) }
                             }
                         }
-                        mainHandler.post { reply.success(value) }
-                    } catch (error: Exception) {
-                        mainHandler.post { reply.error("POSE_ERROR", error.message, null) }
                     }
+                    "startNativeCamera" -> {
+                        startNativeCamera(flutterEngine, reply)
+                    }
+                    "stopNativeCamera" -> {
+                        stopNativeCamera()
+                        reply.success(null)
+                    }
+                    "detect" -> {
+                        worker.execute {
+                            try {
+                                val value = detect(call.arguments as Map<*, *>)
+                                mainHandler.post { reply.success(value) }
+                            } catch (error: Exception) {
+                                mainHandler.post { reply.error("POSE_ERROR", error.message, null) }
+                            }
+                        }
+                    }
+                    "close" -> {
+                        worker.execute {
+                            stopNativeCamera()
+                            landmarker?.close()
+                            landmarker = null
+                            modelBuffer = null
+                            cachedBitmap?.recycle()
+                            cachedBitmap = null
+                            pixelBuffer = null
+                            mainHandler.post { reply.success(null) }
+                        }
+                    }
+                    else -> reply.notImplemented()
                 }
             }
+    }
+
+    private fun startNativeCamera(flutterEngine: FlutterEngine, reply: MethodChannel.Result) {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
+            try {
+                cameraProvider = cameraProviderFuture.get()
+                cameraProvider?.unbindAll()
+
+                surfaceTextureEntry?.release()
+                val entry = flutterEngine.renderer.createSurfaceTexture()
+                surfaceTextureEntry = entry
+
+                var surfaceWidth = 1280
+                var surfaceHeight = 720
+
+                val preview = Preview.Builder().build()
+                preview.setSurfaceProvider(ContextCompat.getMainExecutor(this)) { request ->
+                    val surfaceTexture = entry.surfaceTexture()
+                    surfaceTexture.setDefaultBufferSize(request.resolution.width, request.resolution.height)
+                    surfaceWidth = request.resolution.width
+                    surfaceHeight = request.resolution.height
+                    val surface = Surface(surfaceTexture)
+                    request.provideSurface(surface, ContextCompat.getMainExecutor(this)) {
+                        surface.release()
+                    }
+                }
+
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                    .build()
+
+                imageAnalysis.setAnalyzer(worker) { imageProxy ->
+                    try {
+                        val detector = landmarker
+                        if (detector != null) {
+                            val timestampMs = imageProxy.imageInfo.timestamp / 1_000_000
+                            val monotonicTimestamp = if (timestampMs > lastNativeTimestampMs) timestampMs else lastNativeTimestampMs + 1
+                            lastNativeTimestampMs = monotonicTimestamp
+
+                            val bitmap = imageProxy.toBitmap()
+                            val mpImage = BitmapImageBuilder(bitmap).build()
+                            val options = ImageProcessingOptions.builder()
+                                .setRotationDegrees(imageProxy.imageInfo.rotationDegrees)
+                                .build()
+
+                            val t0 = System.currentTimeMillis()
+                            val result = detector.detectForVideo(mpImage, options, monotonicTimestamp)
+                            val elapsed = System.currentTimeMillis() - t0
+
+                            val rawList = result.landmarks().firstOrNull()?.map { point ->
+                                mapOf(
+                                    "x" to point.x(),
+                                    "y" to point.y(),
+                                    "z" to point.z(),
+                                    "visibility" to point.visibility().orElse(0f)
+                                )
+                            } ?: emptyList()
+
+                            val frameWidth = imageProxy.width
+                            val frameHeight = imageProxy.height
+
+                            mainHandler.post {
+                                eventSink?.success(
+                                    mapOf(
+                                        "landmarks" to rawList,
+                                        "latencyMs" to elapsed,
+                                        "width" to frameWidth,
+                                        "height" to frameHeight,
+                                        "rotation" to imageProxy.imageInfo.rotationDegrees
+                                    )
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("CalisPose", "Analyzer error", e)
+                    } finally {
+                        imageProxy.close()
+                    }
+                }
+
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                cameraProvider?.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
+
+                reply.success(
+                    mapOf(
+                        "textureId" to entry.id(),
+                        "width" to surfaceWidth,
+                        "height" to surfaceHeight
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("CalisPose", "startNativeCamera failed", e)
+                reply.error("CAMERA_START_FAILED", e.message, null)
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun stopNativeCamera() {
+        cameraProvider?.unbindAll()
+        cameraProvider = null
+        surfaceTextureEntry?.release()
+        surfaceTextureEntry = null
     }
 
     private fun detect(frame: Map<*, *>): List<Map<String, Float>> {
@@ -208,6 +355,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         worker.execute {
+            stopNativeCamera()
             landmarker?.close()
             landmarker = null
             modelBuffer = null

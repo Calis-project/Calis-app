@@ -18,14 +18,51 @@ class NormalizedLandmark {
   final double likelihood;
 }
 
-/// Sends Flutter camera frames to the platform MediaPipe Pose Landmarker.
+/// Information about the native camera texture preview.
+class NativeCameraInfo {
+  const NativeCameraInfo({
+    required this.textureId,
+    required this.width,
+    required this.height,
+  });
+
+  final int textureId;
+  final int width;
+  final int height;
+}
+
+/// Real-time detection event from the native CameraX direct analyzer.
+class PoseDetectionEvent {
+  const PoseDetectionEvent({
+    required this.landmarks,
+    required this.latencyMs,
+    required this.width,
+    required this.height,
+    required this.rotation,
+  });
+
+  final Map<String, NormalizedLandmark> landmarks;
+  final int latencyMs;
+  final int width;
+  final int height;
+  final int rotation;
+}
+
+/// Sends Flutter camera frames to the platform MediaPipe Pose Landmarker
+/// or orchestrates direct on-device native CameraX analysis.
 class PoseLandmarkBridge {
-  PoseLandmarkBridge({MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel('calis/pose_landmarks');
+  PoseLandmarkBridge({
+    MethodChannel? channel,
+    EventChannel? eventChannel,
+  })  : _channel = channel ?? const MethodChannel('calis/pose_landmarks'),
+        _eventChannel = eventChannel ??
+            const EventChannel('calis/pose_landmarks_stream');
 
   final MethodChannel _channel;
+  final EventChannel _eventChannel;
   bool _initialized = false;
   int _lastTimestampMs = -1;
+  Stream<PoseDetectionEvent>? _landmarkStream;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -37,6 +74,43 @@ class PoseLandmarkBridge {
     _initialized = true;
   }
 
+  /// Starts native direct camera analysis (CameraX Preview on Texture + ImageAnalysis on GPU).
+  Future<NativeCameraInfo> startNativeCamera() async {
+    final res = await _channel.invokeMapMethod<String, dynamic>('startNativeCamera');
+    if (res == null) throw StateError('Failed to start native camera stream.');
+    return NativeCameraInfo(
+      textureId: res['textureId'] as int,
+      width: (res['width'] as num).toInt(),
+      height: (res['height'] as num).toInt(),
+    );
+  }
+
+  /// Real-time stream of landmarks and latency emitted directly from native CameraX analyzer.
+  Stream<PoseDetectionEvent> get landmarkStream {
+    return _landmarkStream ??= _eventChannel
+        .receiveBroadcastStream()
+        .map((event) {
+          final map = event as Map<dynamic, dynamic>;
+          final raw = map['landmarks'] as List<dynamic>? ?? const [];
+          final latencyMs = (map['latencyMs'] as num?)?.toInt() ?? 0;
+          final width = (map['width'] as num?)?.toInt() ?? 0;
+          final height = (map['height'] as num?)?.toInt() ?? 0;
+          final rotation = (map['rotation'] as num?)?.toInt() ?? 0;
+          return PoseDetectionEvent(
+            landmarks: mapPose(raw),
+            latencyMs: latencyMs,
+            width: width,
+            height: height,
+            rotation: rotation,
+          );
+        });
+  }
+
+  Future<void> stopNativeCamera() async {
+    await _channel.invokeMethod<void>('stopNativeCamera');
+  }
+
+  /// Fallback frame-by-frame detect over MethodChannel.
   Future<Map<String, NormalizedLandmark>> detect(
     CameraImage image,
     CameraDescription camera,
