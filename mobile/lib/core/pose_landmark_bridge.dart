@@ -39,6 +39,7 @@ class PoseDetectionEvent {
     required this.width,
     required this.height,
     required this.rotation,
+    this.cameraFrameCount,
   });
 
   final Map<String, NormalizedLandmark> landmarks;
@@ -46,6 +47,7 @@ class PoseDetectionEvent {
   final int width;
   final int height;
   final int rotation;
+  final int? cameraFrameCount;
 }
 
 /// Sends Flutter camera frames to the platform MediaPipe Pose Landmarker
@@ -96,12 +98,14 @@ class PoseLandmarkBridge {
           final width = (map['width'] as num?)?.toInt() ?? 0;
           final height = (map['height'] as num?)?.toInt() ?? 0;
           final rotation = (map['rotation'] as num?)?.toInt() ?? 0;
+          final cameraFrameCount = (map['cameraFrameCount'] as num?)?.toInt();
           return PoseDetectionEvent(
             landmarks: mapPose(raw),
             latencyMs: latencyMs,
             width: width,
             height: height,
             rotation: rotation,
+            cameraFrameCount: cameraFrameCount,
           );
         });
   }

@@ -41,4 +41,20 @@ void main() {
     final joints = PoseLandmarkBridge.mapPose(poseWithoutZ);
     expect(joints['shoulder']!.z, isNull);
   });
+
+  test('PoseDetectionEvent retains cameraFrameCount and detection fields', () {
+    const event = PoseDetectionEvent(
+      landmarks: {},
+      latencyMs: 24,
+      width: 1280,
+      height: 720,
+      rotation: 90,
+      cameraFrameCount: 42,
+    );
+    expect(event.cameraFrameCount, 42);
+    expect(event.latencyMs, 24);
+    expect(event.width, 1280);
+    expect(event.height, 720);
+    expect(event.rotation, 90);
+  });
 }

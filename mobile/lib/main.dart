@@ -101,9 +101,22 @@ class _CameraScreenState extends State<CameraScreen> {
         _stopwatch.start();
         _fpsWindowStart = _stopwatch.elapsedMilliseconds;
         _frameSize = '${_nativeCamera!.width}x${_nativeCamera!.height}';
+        int lastReportedCameraFrames = 0;
 
         _nativeSubscription = _poseBridge.landmarkStream.listen((event) {
-          _frameCount++;
+          if (event.cameraFrameCount != null) {
+            final count = event.cameraFrameCount!;
+            if (lastReportedCameraFrames > 0 && count >= lastReportedCameraFrames) {
+              _frameCount += (count - lastReportedCameraFrames);
+            } else if (lastReportedCameraFrames == 0) {
+              _frameCount += count > 0 ? count : 1;
+            } else {
+              _frameCount++;
+            }
+            lastReportedCameraFrames = count;
+          } else {
+            _frameCount++;
+          }
           _processedFrames++;
           _landmarkCount = event.landmarks.length;
           if (event.landmarks.length == 5) _framesWithLandmarks++;

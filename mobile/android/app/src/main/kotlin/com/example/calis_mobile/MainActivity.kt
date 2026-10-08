@@ -1,5 +1,7 @@
 package com.example.calis_mobile
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Handler
@@ -10,6 +12,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -24,9 +27,15 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.TextureRegistry
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : FlutterActivity() {
+    companion object {
+        private const val CAMERA_PERMISSION_REQUEST_CODE = 1001
+    }
+
     private val worker = Executors.newSingleThreadExecutor()
+    private val cameraAnalysisExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var landmarker: PoseLandmarker? = null
     private var modelBuffer: ByteBuffer? = null
@@ -38,6 +47,10 @@ class MainActivity : FlutterActivity() {
     private var surfaceTextureEntry: TextureRegistry.SurfaceTextureEntry? = null
     private var eventSink: EventChannel.EventSink? = null
     private var lastNativeTimestampMs = -1L
+    private val isAnalyzing = AtomicBoolean(false)
+    private var totalCameraFrames = 0
+    private var pendingCameraReply: MethodChannel.Result? = null
+    private var pendingCameraEngine: FlutterEngine? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -122,6 +135,45 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun startNativeCamera(flutterEngine: FlutterEngine, reply: MethodChannel.Result) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            pendingCameraReply = reply
+            pendingCameraEngine = flutterEngine
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_REQUEST_CODE
+            )
+            return
+        }
+        bindNativeCamera(flutterEngine, reply)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            val reply = pendingCameraReply
+            val engine = pendingCameraEngine
+            pendingCameraReply = null
+            pendingCameraEngine = null
+            if (reply != null) {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    if (engine != null) {
+                        bindNativeCamera(engine, reply)
+                    } else {
+                        reply.error("CAMERA_ERROR", "Flutter engine unavailable after permission grant", null)
+                    }
+                } else {
+                    reply.error("PERMISSION_DENIED", "Camera permission is required to start camera", null)
+                }
+            }
+        }
+    }
+
+    private fun bindNativeCamera(flutterEngine: FlutterEngine, reply: MethodChannel.Result) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             try {
@@ -132,18 +184,28 @@ class MainActivity : FlutterActivity() {
                 val entry = flutterEngine.renderer.createSurfaceTexture()
                 surfaceTextureEntry = entry
 
-                var surfaceWidth = 1280
-                var surfaceHeight = 720
+                var replyDispatched = false
 
                 val preview = Preview.Builder().build()
                 preview.setSurfaceProvider(ContextCompat.getMainExecutor(this)) { request ->
                     val surfaceTexture = entry.surfaceTexture()
-                    surfaceTexture.setDefaultBufferSize(request.resolution.width, request.resolution.height)
-                    surfaceWidth = request.resolution.width
-                    surfaceHeight = request.resolution.height
+                    val negotiatedWidth = request.resolution.width
+                    val negotiatedHeight = request.resolution.height
+                    surfaceTexture.setDefaultBufferSize(negotiatedWidth, negotiatedHeight)
                     val surface = Surface(surfaceTexture)
                     request.provideSurface(surface, ContextCompat.getMainExecutor(this)) {
                         surface.release()
+                    }
+
+                    if (!replyDispatched) {
+                        replyDispatched = true
+                        reply.success(
+                            mapOf(
+                                "textureId" to entry.id(),
+                                "width" to negotiatedWidth,
+                                "height" to negotiatedHeight
+                            )
+                        )
                     }
                 }
 
@@ -152,65 +214,80 @@ class MainActivity : FlutterActivity() {
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
 
-                imageAnalysis.setAnalyzer(worker) { imageProxy ->
-                    try {
-                        val detector = landmarker
-                        if (detector != null) {
-                            val timestampMs = imageProxy.imageInfo.timestamp / 1_000_000
-                            val monotonicTimestamp = if (timestampMs > lastNativeTimestampMs) timestampMs else lastNativeTimestampMs + 1
-                            lastNativeTimestampMs = monotonicTimestamp
+                imageAnalysis.setAnalyzer(cameraAnalysisExecutor) { imageProxy ->
+                    totalCameraFrames++
+                    val currentCameraFrames = totalCameraFrames
 
-                            val bitmap = imageProxy.toBitmap()
-                            val mpImage = BitmapImageBuilder(bitmap).build()
-                            val options = ImageProcessingOptions.builder()
-                                .setRotationDegrees(imageProxy.imageInfo.rotationDegrees)
-                                .build()
+                    if (isAnalyzing.compareAndSet(false, true)) {
+                        try {
+                            val detector = landmarker
+                            if (detector != null) {
+                                val timestampMs = imageProxy.imageInfo.timestamp / 1_000_000
+                                val monotonicTimestamp = if (timestampMs > lastNativeTimestampMs) timestampMs else lastNativeTimestampMs + 1
+                                lastNativeTimestampMs = monotonicTimestamp
+                                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+                                val frameWidth = imageProxy.width
+                                val frameHeight = imageProxy.height
 
-                            val t0 = System.currentTimeMillis()
-                            val result = detector.detectForVideo(mpImage, options, monotonicTimestamp)
-                            val elapsed = System.currentTimeMillis() - t0
+                                val bitmap = imageProxy.toBitmap()
+                                imageProxy.close()
 
-                            val rawList = result.landmarks().firstOrNull()?.map { point ->
-                                mapOf(
-                                    "x" to point.x(),
-                                    "y" to point.y(),
-                                    "z" to point.z(),
-                                    "visibility" to point.visibility().orElse(0f)
-                                )
-                            } ?: emptyList()
+                                worker.execute {
+                                    try {
+                                        val mpImage = BitmapImageBuilder(bitmap).build()
+                                        val options = ImageProcessingOptions.builder()
+                                            .setRotationDegrees(rotationDegrees)
+                                            .build()
 
-                            val frameWidth = imageProxy.width
-                            val frameHeight = imageProxy.height
+                                        val t0 = System.currentTimeMillis()
+                                        val result = detector.detectForVideo(mpImage, options, monotonicTimestamp)
+                                        val elapsed = System.currentTimeMillis() - t0
 
-                            mainHandler.post {
-                                eventSink?.success(
-                                    mapOf(
-                                        "landmarks" to rawList,
-                                        "latencyMs" to elapsed,
-                                        "width" to frameWidth,
-                                        "height" to frameHeight,
-                                        "rotation" to imageProxy.imageInfo.rotationDegrees
-                                    )
-                                )
+                                        val rawList = result.landmarks().firstOrNull()?.map { point ->
+                                            mapOf(
+                                                "x" to point.x(),
+                                                "y" to point.y(),
+                                                "z" to point.z(),
+                                                "visibility" to point.visibility().orElse(0f)
+                                            )
+                                        } ?: emptyList()
+
+                                        mainHandler.post {
+                                            eventSink?.success(
+                                                mapOf(
+                                                    "landmarks" to rawList,
+                                                    "latencyMs" to elapsed,
+                                                    "width" to frameWidth,
+                                                    "height" to frameHeight,
+                                                    "rotation" to rotationDegrees,
+                                                    "cameraFrameCount" to currentCameraFrames
+                                                )
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("CalisPose", "Worker inference error", e)
+                                    } finally {
+                                        bitmap.recycle()
+                                        isAnalyzing.set(false)
+                                    }
+                                }
+                            } else {
+                                imageProxy.close()
+                                isAnalyzing.set(false)
                             }
+                        } catch (e: Exception) {
+                            Log.e("CalisPose", "Analyzer extraction error", e)
+                            imageProxy.close()
+                            isAnalyzing.set(false)
                         }
-                    } catch (e: Exception) {
-                        Log.e("CalisPose", "Analyzer error", e)
-                    } finally {
+                    } else {
+                        // Drop frame immediately so CameraX pipeline does not block
                         imageProxy.close()
                     }
                 }
 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 cameraProvider?.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
-
-                reply.success(
-                    mapOf(
-                        "textureId" to entry.id(),
-                        "width" to surfaceWidth,
-                        "height" to surfaceHeight
-                    )
-                )
             } catch (e: Exception) {
                 Log.e("CalisPose", "startNativeCamera failed", e)
                 reply.error("CAMERA_START_FAILED", e.message, null)
@@ -219,10 +296,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun stopNativeCamera() {
-        cameraProvider?.unbindAll()
-        cameraProvider = null
-        surfaceTextureEntry?.release()
-        surfaceTextureEntry = null
+        mainHandler.post {
+            cameraProvider?.unbindAll()
+            cameraProvider = null
+            surfaceTextureEntry?.release()
+            surfaceTextureEntry = null
+        }
+        totalCameraFrames = 0
+        isAnalyzing.set(false)
     }
 
     private fun detect(frame: Map<*, *>): List<Map<String, Float>> {
