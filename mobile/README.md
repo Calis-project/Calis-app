@@ -28,8 +28,9 @@ functional checks and a physical Android device for performance acceptance.
 
 ## Documentation
 
-- [Engineering report and physical-device test protocol](../docs/Arash/flutter_camera_report.md)
-- [Simple explanation for learning and presenting the task](../docs/Arash/flutter_camera_explained.md)
+- [Camera engineering report and physical-device test protocol](../docs/04_mobile/flutter_camera_report.md)
+- [Simple explanation for learning and presenting the camera task](../docs/04_mobile/flutter_camera_explained.md)
+- [Issue #29 skeleton overlay report, test results and remaining acceptance checks](../docs/04_mobile/flutter_skeleton_overlay_report.md)
 
 Generated platform scaffolding is retained. Android is the current test target;
 other platform behavior is not validated by this task.

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 
+import 'widgets/skeleton_overlay.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -52,7 +54,10 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _mockAnimation;
+  bool _showMock = true;
   late CameraController _controller;
   int _frameCount = 0;
   double _fps = 0.0;
@@ -64,6 +69,10 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
+    _mockAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
 
     _controller = CameraController(
       widget.camera,
@@ -137,9 +146,19 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
+    _mockAnimation.dispose();
     _stopwatch.stop();
     _disposeCamera();
     super.dispose();
+  }
+
+  void _toggleMock() {
+    setState(() => _showMock = !_showMock);
+    if (_showMock) {
+      _mockAnimation.repeat(reverse: true);
+    } else {
+      _mockAnimation.stop();
+    }
   }
 
   @override
@@ -152,8 +171,15 @@ class _CameraScreenState extends State<CameraScreen> {
     }
 
     final previewSize = _controller.value.previewSize!;
+
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    final cameraSize = Size(
+      landscape ? previewSize.width : previewSize.height,
+      landscape ? previewSize.height : previewSize.width,
+    );
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -169,15 +195,67 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
             ),
           ),
+
+          if (_showMock)
+            AnimatedBuilder(
+              animation: _mockAnimation,
+              builder: (context, child) {
+                final shift = (_mockAnimation.value - 0.5) * 0.1;
+
+                return SkeletonOverlay(
+                  cameraSize: cameraSize,
+                  joints: {
+                    'shoulder': Offset(0.45 + shift, 0.25),
+                    'elbow': Offset(0.55 + shift, 0.38),
+                    'wrist': Offset(0.60 + shift, 0.52),
+                    'hip': Offset(0.48 + shift, 0.50),
+                    'knee': Offset(0.52 + shift, 0.68),
+                    'ankle': Offset(0.55 + shift, 0.85),
+                  },
+                );
+              },
+            ),
+
           Positioned(
             top: 40,
             left: 16,
             child: Text(
-              'FPS: ${_fps.toStringAsFixed(1)}',
+              'Camera FPS: ${_fps.toStringAsFixed(1)}',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: SafeArea(
+              top: false,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _showMock ? 'Mock pose' : 'Mock pose hidden',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: _toggleMock,
+                    child: Text(_showMock ? 'Hide mock' : 'Show mock'),
+                  ),
+                ],
               ),
             ),
           ),
