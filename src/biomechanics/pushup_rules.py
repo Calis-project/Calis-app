@@ -1,14 +1,25 @@
 import math
 from typing import Dict, List, Optional, Tuple, Any
 
-def calculate_angle(p1: Tuple[float, float], p2: Tuple[float, float], p3: Tuple[float, float]) -> float:
+def calculate_angle(
+    p1: Tuple[float, float],
+    p2: Tuple[float, float],
+    p3: Tuple[float, float],
+    aspect_ratio: float = 1.0,
+) -> float:
     """
     Calculate the 2D angle between three points (p2 is the vertex).
+
+    aspect_ratio is frame width / frame height. MediaPipe normalizes x by the
+    frame width and y by the frame height, so normalized points must have x
+    rescaled before angles are measured. Leave it at 1.0 only for points that
+    already share one unit on both axes (e.g. pixels).
+
     Returns the angle in degrees [0, 180].
     """
-    dx1 = p1[0] - p2[0]
+    dx1 = (p1[0] - p2[0]) * aspect_ratio
     dy1 = p1[1] - p2[1]
-    dx2 = p3[0] - p2[0]
+    dx2 = (p3[0] - p2[0]) * aspect_ratio
     dy2 = p3[1] - p2[1]
 
     angle1 = math.atan2(dy1, dx1)
@@ -20,17 +31,25 @@ def calculate_angle(p1: Tuple[float, float], p2: Tuple[float, float], p3: Tuple[
         
     return angle
 
-def is_hip_sagging(shoulder: Tuple[float, float], hip: Tuple[float, float], ankle: Tuple[float, float]) -> bool:
+def is_hip_sagging(
+    shoulder: Tuple[float, float],
+    hip: Tuple[float, float],
+    ankle: Tuple[float, float],
+    aspect_ratio: float = 1.0,
+) -> bool:
     """
     Detect if the hip is sagging based on body angle and vertical displacement.
     Uses y-down coordinate system (standard for images/video).
+    aspect_ratio is frame width / frame height (see calculate_angle).
     """
-    body_angle = calculate_angle(shoulder, hip, ankle)
+    body_angle = calculate_angle(shoulder, hip, ankle, aspect_ratio)
     
     if body_angle >= 160.0:
         return False
         
-    # Calculate vertical displacement from the shoulder-ankle line
+    # Calculate vertical displacement from the shoulder-ankle line.
+    # This compares y values at the hip's own x, so its outcome does not depend
+    # on how x is scaled and needs no aspect-ratio correction.
     dx = ankle[0] - shoulder[0]
     dy = ankle[1] - shoulder[1]
     
@@ -44,10 +63,22 @@ def is_hip_sagging(shoulder: Tuple[float, float], hip: Tuple[float, float], ankl
     # In y-down, if hip's y is greater than expected_y, it's sagging (closer to floor)
     return hip[1] > expected_y
 
-def evaluate_pushup_stream(landmarks: List[Optional[Dict[str, Tuple[float, float]]]]) -> Dict[str, Any]:
+def evaluate_pushup_stream(
+    landmarks: List[Optional[Dict[str, Tuple[float, float]]]],
+    frame_width: float,
+    frame_height: float,
+) -> Dict[str, Any]:
     """
     Evaluate a stream of landmarks to count pushup reps and detect form errors.
+
+    landmarks are MediaPipe-normalized (x, y) points. frame_width and
+    frame_height are the dimensions of the frames they were extracted from,
+    needed to measure angles without aspect-ratio distortion.
     """
+    if frame_width <= 0 or frame_height <= 0:
+        raise ValueError(f"Invalid frame size: {frame_width}x{frame_height}")
+    aspect_ratio = frame_width / frame_height
+
     state = "IDLE"
     rep_count = 0
     detected_error = None
@@ -67,12 +98,12 @@ def evaluate_pushup_stream(landmarks: List[Optional[Dict[str, Tuple[float, float
             continue
             
         # Check for hip sag
-        if is_hip_sagging(shoulder, hip, ankle):
+        if is_hip_sagging(shoulder, hip, ankle, aspect_ratio):
             detected_error = "HIP_SAG"
             is_valid = False
             
-        elbow_angle = calculate_angle(shoulder, elbow, wrist)
-        body_angle = calculate_angle(shoulder, hip, ankle)
+        elbow_angle = calculate_angle(shoulder, elbow, wrist, aspect_ratio)
+        body_angle = calculate_angle(shoulder, hip, ankle, aspect_ratio)
         
         is_straight_body = body_angle >= 160.0
         
