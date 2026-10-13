@@ -156,9 +156,9 @@ class PoseLandmarkBridge {
   /// Selects the more visible side, matching src/vision/pose_extractor.py.
   static Map<String, NormalizedLandmark> mapPose(List<dynamic> pose) {
     if (pose.length < 33) return const {};
-    const left = [11, 13, 15, 23, 27];
-    const right = [12, 14, 16, 24, 28];
-    const names = ['shoulder', 'elbow', 'wrist', 'hip', 'ankle'];
+    const left = [11, 13, 15, 23, 25, 27];
+    const right = [12, 14, 16, 24, 26, 28];
+    const names = ['shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle'];
     double visibility(int index) =>
         ((pose[index] as Map)['visibility'] as num?)?.toDouble() ?? 0;
     final leftScore = left.fold<double>(0, (sum, i) => sum + visibility(i));

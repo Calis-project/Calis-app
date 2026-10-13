@@ -45,7 +45,7 @@ def extract_landmarks(
 ) -> List[Optional[Dict[str, Tuple[float, float]]]]:
     """
     Extracts keypoint coordinates per frame for pushup analysis.
-    Returns: list of dicts containing 'shoulder', 'elbow', 'wrist', 'hip', 'ankle'
+    Returns: list of dicts containing 'shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle'
     """
     if not os.path.isfile(video_path):
         raise FileNotFoundError(f"Video file not found: {video_path}")
@@ -89,10 +89,10 @@ def extract_landmarks(
             if result.pose_landmarks and len(result.pose_landmarks) > 0:
                 lm = result.pose_landmarks[0]
                 # Sagittal view: determine visible side facing the camera
-                # Left: 11 (shoulder), 13 (elbow), 15 (wrist), 23 (hip), 27 (ankle)
-                # Right: 12, 14, 16, 24, 28
-                left_vis = sum(lm[i].visibility for i in [11, 13, 15, 23, 27])
-                right_vis = sum(lm[i].visibility for i in [12, 14, 16, 24, 28])
+                # Left: 11 (shoulder), 13 (elbow), 15 (wrist), 23 (hip), 25 (knee), 27 (ankle)
+                # Right: 12, 14, 16, 24, 26, 28
+                left_vis = sum(lm[i].visibility for i in [11, 13, 15, 23, 25, 27])
+                right_vis = sum(lm[i].visibility for i in [12, 14, 16, 24, 26, 28])
                 offset = 0 if left_vis >= right_vis else 1
 
                 all_frames_landmarks.append({
@@ -100,6 +100,7 @@ def extract_landmarks(
                     "elbow": (float(lm[13 + offset].x), float(lm[13 + offset].y)),
                     "wrist": (float(lm[15 + offset].x), float(lm[15 + offset].y)),
                     "hip": (float(lm[23 + offset].x), float(lm[23 + offset].y)),
+                    "knee": (float(lm[25 + offset].x), float(lm[25 + offset].y)),
                     "ankle": (float(lm[27 + offset].x), float(lm[27 + offset].y)),
                 })
             else:

@@ -23,6 +23,7 @@ Returns normalized `(x, y)` coordinates per frame (automatically selects visible
     "elbow": (x, y),     # Joint 13/14
     "wrist": (x, y),     # Joint 15/16
     "hip": (x, y),       # Joint 23/24
+    "knee": (x, y),      # Joint 25/26
     "ankle": (x, y),     # Joint 27/28
 }
 ```

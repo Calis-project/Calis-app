@@ -119,7 +119,7 @@ class _CameraScreenState extends State<CameraScreen> {
           }
           _processedFrames++;
           _landmarkCount = event.landmarks.length;
-          if (event.landmarks.length == 5) _framesWithLandmarks++;
+          if (event.landmarks.length == 6) _framesWithLandmarks++;
           _totalProcessingMs += event.latencyMs;
           if (event.latencyMs > _maxProcessingMs) {
             _maxProcessingMs = event.latencyMs;
@@ -246,7 +246,7 @@ class _CameraScreenState extends State<CameraScreen> {
       );
       _processedFrames++;
       _landmarkCount = landmarks.length;
-      if (landmarks.length == 5) _framesWithLandmarks++;
+      if (landmarks.length == 6) _framesWithLandmarks++;
     } catch (error) {
       debugPrint('Pose detection stopped: $error');
       if (mounted) {
