@@ -1,0 +1,84 @@
+{
+    "benchmark_version": "1.0",
+    "created_at": "2026-10-12",
+    "videos": [
+        {
+            "file_name": "bench_lowlight_01.mp4",
+            "condition": "low_light",
+            "angle_deg": 90,
+            "lux_approx": 10,
+            "exercise": "pushup",
+            "ground_truth": {
+                "total_reps": 3,
+                "rep_timestamps_sec": [
+                    {"rep": 1, "start": 4.967, "inflection": 5.867, "end": 6.733},
+                    {"rep": 2, "start": 7.367, "inflection": 8.567, "end": 9.200},
+                    {"rep": 3, "start": 9.767, "inflection": 10.633, "end": 11.733}
+                    ]
+                }
+        },
+        {
+            "file_name": "bench_lowlight_02.mp4",
+            "condition": "low_light",
+            "angle_deg": 90,
+            "lux_approx": 20,
+            "exercise": "pushup",
+            "ground_truth": {
+                "total_reps": 4,
+                "rep_timestamps_sec": [
+                    {"rep": 1, "start": 0.800, "inflection": 2.000, "end": 2.700},
+                    {"rep": 2, "start": 3.067, "inflection": 3.967, "end": 4.967},
+                    {"rep": 3, "start": 5.500, "inflection": 6.400, "end": 7.533},
+                    {"rep": 4, "start": 7.733, "inflection": 8.667, "end": 9.667}
+                    ]
+                }
+        },
+        {
+            "file_name": "bench_lowlight_03.mp4",
+            "condition": "low_light",
+            "angle_deg": 90,
+            "lux_approx": 30,
+            "exercise": "pushup",
+            "ground_truth": {
+                "total_reps": 4,
+                "rep_timestamps_sec": [
+                    {"rep": 1, "start": 1.300, "inflection": 2.367, "end": 3.100},
+                    {"rep": 2, "start": 3.633, "inflection": 4.467, "end": 5.533},
+                    {"rep": 3, "start": 5.867, "inflection": 6.800, "end": 7.800},
+                    {"rep": 4, "start": 8.000, "inflection": 9.000, "end": 10.100}
+                    ]
+                }
+        },
+        {
+            "file_name": "bench_lowlight_04.mp4",
+            "condition": "low_light",
+            "angle_deg": 90,
+            "lux_approx": 40,
+            "exercise": "pushup",
+            "ground_truth": {
+                "total_reps": 3,
+                "rep_timestamps_sec": [
+                    {"rep": 1, "start": 0.500, "inflection": 1.433, "end": 2.567},
+                    {"rep": 2, "start": 3.000, "inflection": 3.933, "end": 5.067},
+                    {"rep": 3, "start": 5.567, "inflection": 6.500, "end": 7.600}
+                    ]
+                }
+        },
+        {
+            "file_name": "bench_lowlight_05.mp4",
+            "condition": "low_light",
+            "angle_deg": 90,
+            "lux_approx": 50,
+            "exercise": "pushup",
+            "ground_truth": {
+                "total_reps": 4,
+                "rep_timestamps_sec": [
+                    {"rep": 1, "start": 3.200, "inflection": 4.000, "end": 4.967},
+                    {"rep": 2, "start": 5.500, "inflection": 6.267, "end": 7.400},
+                    {"rep": 3, "start": 7.467, "inflection": 8.733, "end": 9.867},
+                    {"rep": 4, "start": 10.333, "inflection": 11.200, "end": 12.267}
+                    ]
+                }
+        }
+    ]
+}
