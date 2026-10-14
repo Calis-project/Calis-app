@@ -15,12 +15,14 @@ void main() {
 
     final joints = PoseLandmarkBridge.mapPose(pose);
 
-    expect(joints.keys, ['shoulder', 'elbow', 'wrist', 'hip', 'ankle']);
+    expect(joints.keys, ['shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle']);
     expect(joints['shoulder']!.x, 0.11);
     expect(joints['elbow']!.x, 0.13);
     expect(joints['wrist']!.x, 0.15);
     expect(joints['hip']!.x, 0.23);
+    expect(joints['knee']!.x, 0.25);
     expect(joints['ankle']!.x, 0.27);
+    expect(joints['knee']!.likelihood, 0.9);
     expect(joints['shoulder']!.likelihood, 0.9);
     expect(joints['shoulder']!.z, -0.1);
     expect(PoseLandmarkBridge.mapPose([]), isEmpty);
