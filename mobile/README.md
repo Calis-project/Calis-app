@@ -27,7 +27,7 @@ Pose Landmarker through a small native platform channel. Android requests YUV420
 frames; iOS requests BGRA frames. Native inference uses MediaPipe's video mode
 on a background worker with increasing frame timestamps. The bridge returns normalized
 `shoulder`, `elbow`, `wrist`, `hip`, `knee`, and `ankle` coordinates from the more visible
-side, keeping the names used by `src/vision/pose_extractor.py` and adding the knee for the skeleton overlay. It bundles the
+side, matching the names used by `src/vision/pose_extractor.py`. It bundles the
 same lite model; the Python video-file extractor itself does not run inside the phone app.
 
 The preview displays camera FPS, FPS with all six landmarks, and frames skipped

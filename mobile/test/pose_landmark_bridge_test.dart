@@ -22,6 +22,7 @@ void main() {
     expect(joints['hip']!.x, 0.23);
     expect(joints['knee']!.x, 0.25);
     expect(joints['ankle']!.x, 0.27);
+    expect(joints['knee']!.likelihood, 0.9);
     expect(joints['shoulder']!.likelihood, 0.9);
     expect(joints['shoulder']!.z, -0.1);
     expect(PoseLandmarkBridge.mapPose([]), isEmpty);

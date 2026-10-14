@@ -45,7 +45,21 @@ def extract_landmarks(
 ) -> List[Optional[Dict[str, Tuple[float, float]]]]:
     """
     Extracts keypoint coordinates per frame for pushup analysis.
-    Returns: list of dicts containing 'shoulder', 'elbow', 'wrist', 'hip', 'ankle'
+    Returns: list of dicts containing 'shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle'
+    """
+    landmarks, _ = extract_landmarks_with_frame_size(video_path, model_path)
+    return landmarks
+
+
+def extract_landmarks_with_frame_size(
+    video_path: str,
+    model_path: Optional[str] = None,
+) -> Tuple[List[Optional[Dict[str, Tuple[float, float]]]], Tuple[int, int]]:
+    """
+    Same extraction as extract_landmarks, plus the (width, height) of the frames.
+    Landmarks stay normalized to [0, 1] per axis, so angle calculations need the
+    frame size to undo the aspect-ratio distortion.
+    Returns: (landmarks, (frame_width, frame_height))
     """
     if not os.path.isfile(video_path):
         raise FileNotFoundError(f"Video file not found: {video_path}")
@@ -64,6 +78,9 @@ def extract_landmarks(
     fps = cap.get(cv2.CAP_PROP_FPS)
     fps = fps if (fps and fps > 0) else 30.0
 
+    # Container metadata; replaced below by the size of the frames actually decoded
+    frame_size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+
     all_frames_landmarks: List[Optional[Dict[str, Tuple[float, float]]]] = []
     latencies = []
     last_timestamp_ms = -1
@@ -74,6 +91,9 @@ def extract_landmarks(
             ret, frame = cap.read()
             if not ret:
                 break
+
+            # MediaPipe normalizes against the decoded frame (rotation already applied)
+            frame_size = (frame.shape[1], frame.shape[0])
 
             # Monotonically increasing timestamp required by MediaPipe VIDEO mode
             timestamp_ms = max(int((frame_idx / fps) * 1000), last_timestamp_ms + 1)
@@ -89,10 +109,10 @@ def extract_landmarks(
             if result.pose_landmarks and len(result.pose_landmarks) > 0:
                 lm = result.pose_landmarks[0]
                 # Sagittal view: determine visible side facing the camera
-                # Left: 11 (shoulder), 13 (elbow), 15 (wrist), 23 (hip), 27 (ankle)
-                # Right: 12, 14, 16, 24, 28
-                left_vis = sum(lm[i].visibility for i in [11, 13, 15, 23, 27])
-                right_vis = sum(lm[i].visibility for i in [12, 14, 16, 24, 28])
+                # Left: 11 (shoulder), 13 (elbow), 15 (wrist), 23 (hip), 25 (knee), 27 (ankle)
+                # Right: 12, 14, 16, 24, 26, 28
+                left_vis = sum(lm[i].visibility for i in [11, 13, 15, 23, 25, 27])
+                right_vis = sum(lm[i].visibility for i in [12, 14, 16, 24, 26, 28])
                 offset = 0 if left_vis >= right_vis else 1
 
                 all_frames_landmarks.append({
@@ -100,6 +120,7 @@ def extract_landmarks(
                     "elbow": (float(lm[13 + offset].x), float(lm[13 + offset].y)),
                     "wrist": (float(lm[15 + offset].x), float(lm[15 + offset].y)),
                     "hip": (float(lm[23 + offset].x), float(lm[23 + offset].y)),
+                    "knee": (float(lm[25 + offset].x), float(lm[25 + offset].y)),
                     "ankle": (float(lm[27 + offset].x), float(lm[27 + offset].y)),
                 })
             else:
@@ -113,7 +134,7 @@ def extract_landmarks(
         avg_ms = sum(latencies) / len(latencies)
         print(f"Processed {len(latencies)} frames | Avg CPU latency: {avg_ms:.2f} ms/frame (< 35ms DoD: {'PASS' if avg_ms < 35.0 else 'FAIL'})")
 
-    return all_frames_landmarks
+    return all_frames_landmarks, frame_size
 
 
 if __name__ == "__main__":

@@ -193,7 +193,7 @@ class PoseLandmarkBridge {
     return mapPose(raw ?? const []);
   }
 
-  /// Selects the more visible side, keeping the Python joint names and adding the knee for the overlay.
+  /// Selects the more visible side, matching the six joint names in src/vision/pose_extractor.py.
   static Map<String, NormalizedLandmark> mapPose(List<dynamic> pose) {
     if (pose.length < 33) return const {};
     const left = [11, 13, 15, 23, 25, 27];
