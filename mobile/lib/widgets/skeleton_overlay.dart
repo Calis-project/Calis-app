@@ -62,6 +62,7 @@ class SkeletonPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Black outlines keep the green skeleton visible on bright camera images.
     final jointPaint = Paint()
       ..color = Colors.green
       ..style = PaintingStyle.fill;

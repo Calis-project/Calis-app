@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:calis_mobile/core/pose_landmark_bridge.dart';
 
-import 'widgets/skeleton_overlay.dart';
+import 'widgets/pose_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,14 +58,14 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _mockAnimation;
-  bool _showMock = true;
+class _CameraScreenState extends State<CameraScreen> {
+  // Latest detected joints; an empty map removes the previous skeleton.
+  final _liveJoints = ValueNotifier<Map<String, Offset>>({});
   CameraController? _controller;
   final PoseLandmarkBridge _poseBridge = PoseLandmarkBridge();
   NativeCameraInfo? _nativeCamera;
   StreamSubscription<PoseDetectionEvent>? _nativeSubscription;
+  StreamSubscription<NativeCameraInfo>? _previewSubscription;
   Timer? _fpsTimer;
 
   int _frameCount = 0;
@@ -91,10 +91,6 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void initState() {
     super.initState();
-    _mockAnimation = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
     _initializeCamera();
   }
 
@@ -104,6 +100,20 @@ class _CameraScreenState extends State<CameraScreen>
       if (!mounted) return;
 
       if (Platform.isAndroid) {
+        // Keep the image and drawing size tied to CameraX, including on tablets.
+        _previewSubscription = _poseBridge.previewStream.listen(
+          (info) {
+            if (!mounted) return;
+            // Discard points drawn for the previous display orientation.
+            if (_nativeCamera?.displayRotation != info.displayRotation) {
+              _liveJoints.value = {};
+            }
+            setState(() => _nativeCamera = info);
+          },
+          onError: (Object error) {
+            if (mounted) setState(() => _error = error.toString());
+          },
+        );
         _nativeCamera = await _poseBridge.startNativeCamera();
         if (!mounted) return;
 
@@ -128,9 +138,14 @@ class _CameraScreenState extends State<CameraScreen>
             } else {
               _frameCount++;
             }
+            if (!mounted) return;
+            // Ignore an in-flight result from before the last rotation.
+            if (event.rotation == _nativeCamera?.imageRotation) {
+              _updateLivePose(event.landmarks, rotation: event.rotation);
+            }
             _processedFrames++;
             _landmarkCount = event.landmarks.length;
-            if (event.landmarks.length == 5) _framesWithLandmarks++;
+            if (event.landmarks.length == 6) _framesWithLandmarks++;
             _totalProcessingMs += event.latencyMs;
             if (event.latencyMs > _maxProcessingMs) {
               _maxProcessingMs = event.latencyMs;
@@ -138,7 +153,10 @@ class _CameraScreenState extends State<CameraScreen>
           },
           onError: (error) {
             debugPrint('Native pose stream error: $error');
-            if (mounted) setState(() => _poseError = error.toString());
+            if (mounted) {
+              _liveJoints.value = {};
+              setState(() => _poseError = error.toString());
+            }
           },
         );
 
@@ -256,12 +274,15 @@ class _CameraScreenState extends State<CameraScreen>
         _controller!.value.deviceOrientation,
         _stopwatch.elapsedMilliseconds,
       );
+      if (!mounted) return;
+      _updateLivePose(landmarks);
       _processedFrames++;
       _landmarkCount = landmarks.length;
-      if (landmarks.length == 5) _framesWithLandmarks++;
+      if (landmarks.length == 6) _framesWithLandmarks++;
     } catch (error) {
       debugPrint('Pose detection stopped: $error');
       if (mounted) {
+        _liveJoints.value = {};
         setState(() => _poseError = error.toString());
       } else {
         _poseError = error.toString();
@@ -298,10 +319,11 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void dispose() {
-    _mockAnimation.dispose();
+    _liveJoints.dispose();
     _stopwatch.stop();
     _fpsTimer?.cancel();
     _nativeSubscription?.cancel();
+    _previewSubscription?.cancel();
     if (_nativeCamera != null) {
       unawaited(_poseBridge.stopNativeCamera());
     }
@@ -309,13 +331,18 @@ class _CameraScreenState extends State<CameraScreen>
     super.dispose();
   }
 
-  void _toggleMock() {
-    setState(() => _showMock = !_showMock);
-    if (_showMock) {
-      _mockAnimation.repeat(reverse: true);
-    } else {
-      _mockAnimation.stop();
-    }
+  void _updateLivePose(
+    Map<String, NormalizedLandmark> landmarks, {
+    int rotation = 0,
+  }) {
+    // The painter needs only each joint's name and normalized x/y position.
+    _liveJoints.value = {
+      for (final entry in landmarks.entries)
+        entry.key: NativeCameraInfo.rotatePoint(
+          Offset(entry.value.x, entry.value.y),
+          rotation,
+        ),
+    };
   }
 
   @override
@@ -342,10 +369,9 @@ class _CameraScreenState extends State<CameraScreen>
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
-    final cameraSize = Size(
-      landscape ? width : height,
-      landscape ? height : width,
-    );
+    final cameraSize =
+        _nativeCamera?.displaySize ??
+        Size(landscape ? width : height, landscape ? height : width);
 
     return Scaffold(
       body: Stack(
@@ -356,34 +382,20 @@ class _CameraScreenState extends State<CameraScreen>
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: landscape ? width : height,
-                height: landscape ? height : width,
+                width: cameraSize.width,
+                height: cameraSize.height,
                 child: isNative
-                    ? Texture(textureId: _nativeCamera!.textureId)
+                    ? RotatedBox(
+                        // SurfaceTexture applies sensor rotation already.
+                        quarterTurns: _nativeCamera!.textureQuarterTurns,
+                        child: Texture(textureId: _nativeCamera!.textureId),
+                      )
                     : CameraPreview(_controller!),
               ),
             ),
           ),
 
-          if (_showMock)
-            AnimatedBuilder(
-              animation: _mockAnimation,
-              builder: (context, child) {
-                final shift = (_mockAnimation.value - 0.5) * 0.1;
-
-                return SkeletonOverlay(
-                  cameraSize: cameraSize,
-                  joints: {
-                    'shoulder': Offset(0.45 + shift, 0.25),
-                    'elbow': Offset(0.55 + shift, 0.38),
-                    'wrist': Offset(0.60 + shift, 0.52),
-                    'hip': Offset(0.48 + shift, 0.50),
-                    'knee': Offset(0.52 + shift, 0.68),
-                    'ankle': Offset(0.55 + shift, 0.85),
-                  },
-                );
-              },
-            ),
+          PoseOverlay(liveJoints: _liveJoints, cameraSize: cameraSize),
 
           Positioned(
             top: 40,
@@ -415,37 +427,6 @@ class _CameraScreenState extends State<CameraScreen>
                     style: const TextStyle(color: Colors.redAccent),
                   ),
               ],
-            ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: SafeArea(
-              top: false,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _showMock ? 'Mock pose' : 'Mock pose hidden',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  FilledButton(
-                    onPressed: _toggleMock,
-                    child: Text(_showMock ? 'Hide mock' : 'Show mock'),
-                  ),
-                ],
-              ),
             ),
           ),
         ],

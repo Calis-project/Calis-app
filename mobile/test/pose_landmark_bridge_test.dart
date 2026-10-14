@@ -2,7 +2,7 @@ import 'package:calis_mobile/core/pose_landmark_bridge.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('selects the visible MediaPipe side and matches Python joint names', () {
+  test('selects six joints including the knee from the visible side', () {
     final pose = List.generate(
       33,
       (index) => <String, double>{
@@ -15,11 +15,12 @@ void main() {
 
     final joints = PoseLandmarkBridge.mapPose(pose);
 
-    expect(joints.keys, ['shoulder', 'elbow', 'wrist', 'hip', 'ankle']);
+    expect(joints.keys, ['shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle']);
     expect(joints['shoulder']!.x, 0.11);
     expect(joints['elbow']!.x, 0.13);
     expect(joints['wrist']!.x, 0.15);
     expect(joints['hip']!.x, 0.23);
+    expect(joints['knee']!.x, 0.25);
     expect(joints['ankle']!.x, 0.27);
     expect(joints['shoulder']!.likelihood, 0.9);
     expect(joints['shoulder']!.z, -0.1);
@@ -32,11 +33,7 @@ void main() {
 
     final poseWithoutZ = List.generate(
       33,
-      (index) => <String, dynamic>{
-        'x': 0.2,
-        'y': 0.3,
-        'visibility': 0.9,
-      },
+      (index) => <String, dynamic>{'x': 0.2, 'y': 0.3, 'visibility': 0.9},
     );
     final joints = PoseLandmarkBridge.mapPose(poseWithoutZ);
     expect(joints['shoulder']!.z, isNull);

@@ -26,11 +26,11 @@ Issue **#26 / TSK-203** sends accepted camera frames to the on-device MediaPipe
 Pose Landmarker through a small native platform channel. Android requests YUV420
 frames; iOS requests BGRA frames. Native inference uses MediaPipe's video mode
 on a background worker with increasing frame timestamps. The bridge returns normalized
-`shoulder`, `elbow`, `wrist`, `hip`, and `ankle` coordinates from the more visible
-side, matching the names used by `src/vision/pose_extractor.py`. It bundles the
+`shoulder`, `elbow`, `wrist`, `hip`, `knee`, and `ankle` coordinates from the more visible
+side, keeping the names used by `src/vision/pose_extractor.py` and adding the knee for the skeleton overlay. It bundles the
 same lite model; the Python video-file extractor itself does not run inside the phone app.
 
-The preview displays camera FPS, FPS with all five landmarks, and frames skipped
+The preview displays camera FPS, FPS with all six landmarks, and frames skipped
 while detection was busy. A once-per-second log also shows processed frames and
 average/maximum processing time. For issue #26 acceptance, check on a physical
 phone with a person in view that landmark FPS stays at or above 15, processing
@@ -41,6 +41,14 @@ runtime diagnostics, not a benchmark claim from desktop tests. iOS also needs
 There is no automatic background/resume recovery or Retry UI. Restart the app for
 a fresh foreground session or after changing permissions. Use an emulator for
 functional checks and a physical Android device for performance acceptance.
+
+## Skeleton overlay
+
+The overlay starts in live mode and receives the latest normalized joints from
+the Android landmark stream or the frame-by-frame fallback. An empty
+detection clears the live skeleton. Native preview/landmark alignment and rotation
+still require device validation; the stream connection alone does not establish
+that the points match the preview on every orientation.
 
 ## Documentation
 
