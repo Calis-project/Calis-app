@@ -15,6 +15,17 @@ from src.vision.pose_extractor import extract_landmarks
 landmarks = extract_landmarks("path/to/video.mp4")
 ```
 
+The coordinates are normalized per axis, so angles measured on them are distorted
+unless the frame is square. When feeding the biomechanics engine, also pass the
+frame size:
+```python
+from src.vision.pose_extractor import extract_landmarks_with_frame_size
+from src.biomechanics.pushup_rules import evaluate_pushup_stream
+
+landmarks, (frame_width, frame_height) = extract_landmarks_with_frame_size("path/to/video.mp4")
+result = evaluate_pushup_stream(landmarks, frame_width, frame_height)
+```
+
 ## Data Contract
 Returns normalized `(x, y)` coordinates per frame (automatically selects visible side in sagittal view):
 ```python
