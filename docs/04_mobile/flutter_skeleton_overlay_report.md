@@ -1,5 +1,45 @@
 # Live Skeleton Canvas Overlay — Engineering Report
 
+## Current status — 2026-10-19
+
+- **Implementation:** six normalized joints and five bones drawn by a transparent
+  CustomPainter. The default screen uses real detections through the frame-by-frame
+  bridge and the same CameraController/CameraPreview validated in mock mode.
+- **Mock acceptance fixture:** enable `--dart-define=SKELETON_MOCK=true`; it skips
+  MediaPipe and animates only the overlay. No in-app mock controls are present.
+- **Fresh automated validation:** 27 Flutter tests passed; Flutter analyzer
+  found no issues.
+- **Physical testing reported by the user:** the mock APK worked on their Android
+  tablet; the live APK also worked on that tablet, including camera orientation.
+  One teammate subsequently reported a successful test. Device models, Android
+  versions, and performance traces were not supplied, so these are functional
+  reports rather than a cross-device performance certification.
+- **Acceptance still pending:** no measured 60 FPS UI result is available. Camera
+  FPS and pose FPS do not establish UI FPS. Keep issue #29 open until the mock
+  profile timeline is measured on physical hardware.
+- **Geometry evidence:** shared preview/painter dimensions, centered cover mapping,
+  and numerical portrait/landscape/cropped fixtures. Precise real-body alignment
+  across all supported orientations and devices remains a separate validation.
+- **Out of scope:** recording, new native-camera rotation experiments, and iOS
+  device certification. Existing native preview helpers are not selected by the
+  current camera screen. No MediaPipe dependency change was made.
+
+## Historical implementation and measurements
+
+The following dated notes describe earlier versions. They are retained as
+engineering history; their old controls, test counts, and native-camera findings
+are not the current app state or fresh acceptance evidence.
+
+> **2026-10-17 scope update:** Recording is deferred. The standard app uses live
+> detections; use `--dart-define=SKELETON_MOCK=true` to run the issue-specific
+> animated six-joint fixture over the standard CameraPreview, without MediaPipe.
+> There is no in-app mock button. Preview and painter share the displayed
+> camera size and centered BoxFit.cover mapping. Numerical mapping tests do not
+> prove native analysis/preview alignment. Live rotation and real-body alignment
+> remain unresolved device checks. **60 FPS UI acceptance is still pending.**
+> The dated measurements below describe the earlier implementation, not proof
+> of performance of the current code. See the current mobile README for commands.
+
 - **Task:** [Issue #29 — TSK-201](https://github.com/Calis-project/Calis-app/issues/29)
 - **Owner:** Arash
 - **Working branch:** `feat/issue-29-skeleton-overlay`

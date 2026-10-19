@@ -44,11 +44,28 @@ functional checks and a physical Android device for performance acceptance.
 
 ## Skeleton overlay
 
+Issue #29's mock acceptance path uses the standard CameraPreview and skips
+MediaPipe initialization. It has no mock toggle in the app:
+
+```bash
+flutter run --profile --dart-define=SKELETON_MOCK=true -d <device-id>
+flutter build apk --profile --dart-define=SKELETON_MOCK=true
+```
+
+Without this flag, the app keeps the live pose pipeline. For 60 FPS acceptance,
+measure the Flutter UI and raster timeline on a physical 60 Hz device, after
+warm-up, for at least 30 seconds. The displayed Camera FPS is not UI FPS.
+Record the device, display refresh rate, build flag, and timeline results.
+The flag makes a test fixture available; it does not prove 60 FPS by itself.
+
 The overlay starts in live mode and receives the latest normalized joints from
-the Android landmark stream or the frame-by-frame fallback. An empty
-detection clears the live skeleton. Native preview/landmark alignment and rotation
-still require device validation; the stream connection alone does not establish
-that the points match the preview on every orientation.
+the frame-by-frame bridge using the same CameraController/CameraPreview as
+mock acceptance. The direct native-camera stream is not selected by this screen.
+An empty detection clears the live skeleton. The user reported successful tablet
+checks (including orientation) and one teammate reported a successful test.
+Precise alignment across devices/orientations and measured 60 FPS UI acceptance
+remain pending; see the report for the distinction between functional checks
+and performance evidence.
 
 ## Documentation
 

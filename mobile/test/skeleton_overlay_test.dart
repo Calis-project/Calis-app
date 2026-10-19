@@ -19,6 +19,40 @@ void expectOffset(Offset actual, Offset expected) {
 }
 
 void main() {
+  test('complete six-joint pose draws all five required bones', () {
+    final canvas = TestRecordingCanvas();
+    SkeletonPainter(
+      cameraSize: const Size(720, 1280),
+      joints: const {
+        'shoulder': Offset(0.4, 0.2),
+        'elbow': Offset(0.5, 0.3),
+        'wrist': Offset(0.6, 0.4),
+        'hip': Offset(0.4, 0.5),
+        'knee': Offset(0.5, 0.7),
+        'ankle': Offset(0.5, 0.9),
+      },
+    ).paint(canvas, const Size(720, 1280));
+    expect(drawCalls(canvas, #drawCircle), hasLength(6));
+    final lines = drawCalls(canvas, #drawLine);
+    expect(lines, hasLength(5));
+    // In particular, the leg bends through the knee rather than hip-to-ankle.
+    expectOffset(
+      lines[3].positionalArguments[0] as Offset,
+      const Offset(288, 640),
+    );
+    expectOffset(
+      lines[3].positionalArguments[1] as Offset,
+      const Offset(360, 896),
+    );
+    expectOffset(
+      lines[4].positionalArguments[0] as Offset,
+      const Offset(360, 896),
+    );
+    expectOffset(
+      lines[4].positionalArguments[1] as Offset,
+      const Offset(360, 1152),
+    );
+  });
   test('dark outlines sit behind smaller green joints and bones', () {
     final canvas = TestRecordingCanvas();
     SkeletonPainter(

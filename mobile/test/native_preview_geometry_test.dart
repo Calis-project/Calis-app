@@ -32,7 +32,7 @@ void main() {
               : const Size(720, 1280),
         );
         // The texture already contains the sensor transform.
-        expect(info.textureQuarterTurns, (4 - display) % 4);
+        expect(info.textureQuarterTurns, [0, 1, 2, 3][display]);
       });
     }
   }

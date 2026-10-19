@@ -34,8 +34,8 @@ class NativeCameraInfo {
   final int sensorRotation;
   final int displayRotation;
 
-  // The SurfaceTexture already applies the sensor rotation; correct only display rotation.
-  int get textureQuarterTurns => (4 - displayRotation) % 4;
+  // Test the display direction reported by Android; sensor rotation is already in the texture.
+  int get textureQuarterTurns => displayRotation % 4;
 
   int get imageRotation => (sensorRotation - displayRotation * 90 + 360) % 360;
 
