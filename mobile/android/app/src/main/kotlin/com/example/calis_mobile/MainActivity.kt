@@ -1,5 +1,7 @@
 package com.example.calis_mobile
 
+import android.content.Context
+import android.hardware.display.DisplayManager
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -43,6 +45,39 @@ class MainActivity : FlutterActivity() {
     private var cachedBitmap: Bitmap? = null
 
     // Native CameraX & Stream
+    private var previewUseCase: Preview? = null
+    private var analysisUseCase: ImageAnalysis? = null
+    private var previewWidth = 0
+    private var previewHeight = 0
+    private var sensorRotation = 0
+    private var previewSink: EventChannel.EventSink? = null
+    private val displayManager by lazy { getSystemService(Context.DISPLAY_SERVICE) as DisplayManager }
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) {}
+        override fun onDisplayRemoved(displayId: Int) {}
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId == window.decorView.display?.displayId) updatePreviewRotation()
+        }
+    }
+
+    // Use display rotation, so locking auto-rotate keeps the camera aligned with the UI.
+    private fun updatePreviewRotation() {
+        val rotation = window.decorView.display?.rotation ?: Surface.ROTATION_0
+        previewUseCase?.targetRotation = rotation
+        analysisUseCase?.targetRotation = rotation
+        previewMetadata()?.let { previewSink?.success(it) }
+    }
+
+    private fun previewMetadata(): Map<String, Any>? {
+        val entry = surfaceTextureEntry ?: return null
+        if (previewWidth == 0 || previewHeight == 0) return null
+        return mapOf(
+            "textureId" to entry.id(), "width" to previewWidth, "height" to previewHeight,
+            "sensorRotation" to sensorRotation,
+            "displayRotation" to (window.decorView.display?.rotation ?: Surface.ROTATION_0)
+        )
+    }
+
     private var cameraProvider: ProcessCameraProvider? = null
     private var surfaceTextureEntry: TextureRegistry.SurfaceTextureEntry? = null
     private var eventSink: EventChannel.EventSink? = null
@@ -54,6 +89,14 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "calis/camera_preview")
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    previewSink = events
+                    previewMetadata()?.let { events?.success(it) }
+                }
+                override fun onCancel(arguments: Any?) { previewSink = null }
+            })
 
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, "calis/pose_landmarks_stream")
             .setStreamHandler(object : EventChannel.StreamHandler {
@@ -186,11 +229,15 @@ class MainActivity : FlutterActivity() {
 
                 var replyDispatched = false
 
-                val preview = Preview.Builder().build()
+                val displayRotation = window.decorView.display?.rotation ?: Surface.ROTATION_0
+                val preview = Preview.Builder().setTargetRotation(displayRotation).build()
+                previewUseCase = preview
                 preview.setSurfaceProvider(ContextCompat.getMainExecutor(this)) { request ->
                     val surfaceTexture = entry.surfaceTexture()
                     val negotiatedWidth = request.resolution.width
                     val negotiatedHeight = request.resolution.height
+                    previewWidth = negotiatedWidth
+                    previewHeight = negotiatedHeight
                     surfaceTexture.setDefaultBufferSize(negotiatedWidth, negotiatedHeight)
                     val surface = Surface(surfaceTexture)
                     request.provideSurface(surface, ContextCompat.getMainExecutor(this)) {
@@ -199,21 +246,18 @@ class MainActivity : FlutterActivity() {
 
                     if (!replyDispatched) {
                         replyDispatched = true
-                        reply.success(
-                            mapOf(
-                                "textureId" to entry.id(),
-                                "width" to negotiatedWidth,
-                                "height" to negotiatedHeight
-                            )
-                        )
+                        reply.success(previewMetadata())
+                        updatePreviewRotation()
                     }
                 }
 
                 val imageAnalysis = ImageAnalysis.Builder()
+                    .setTargetRotation(displayRotation)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
 
+                analysisUseCase = imageAnalysis
                 imageAnalysis.setAnalyzer(cameraAnalysisExecutor) { imageProxy ->
                     totalCameraFrames++
                     val currentCameraFrames = totalCameraFrames
@@ -287,7 +331,11 @@ class MainActivity : FlutterActivity() {
                 }
 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-                cameraProvider?.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
+                val camera = cameraProvider!!.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
+                sensorRotation = camera.cameraInfo.getSensorRotationDegrees(Surface.ROTATION_0)
+                displayManager.unregisterDisplayListener(displayListener)
+                displayManager.registerDisplayListener(displayListener, mainHandler)
+                updatePreviewRotation()
             } catch (e: Exception) {
                 Log.e("CalisPose", "startNativeCamera failed", e)
                 reply.error("CAMERA_START_FAILED", e.message, null)
@@ -296,9 +344,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun stopNativeCamera() {
+        displayManager.unregisterDisplayListener(displayListener)
         mainHandler.post {
             cameraProvider?.unbindAll()
             cameraProvider = null
+            previewUseCase = null
+            analysisUseCase = null
+            previewWidth = 0
+            previewHeight = 0
             surfaceTextureEntry?.release()
             surfaceTextureEntry = null
         }

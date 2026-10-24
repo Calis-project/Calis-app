@@ -24,11 +24,49 @@ class NativeCameraInfo {
     required this.textureId,
     required this.width,
     required this.height,
+    this.sensorRotation = 0,
+    this.displayRotation = 0,
   });
 
   final int textureId;
   final int width;
   final int height;
+  final int sensorRotation;
+  final int displayRotation;
+
+  // Test the display direction reported by Android; sensor rotation is already in the texture.
+  int get textureQuarterTurns => displayRotation % 4;
+
+  int get imageRotation => (sensorRotation - displayRotation * 90 + 360) % 360;
+
+  // MediaPipe points refer to the input image; rotate them into the displayed image.
+  static Offset rotatePoint(Offset point, int degrees) => switch (degrees) {
+    0 => point,
+    90 => Offset(1 - point.dy, point.dx),
+    180 => Offset(1 - point.dx, 1 - point.dy),
+    270 => Offset(point.dy, 1 - point.dx),
+    _ => throw ArgumentError.value(
+      degrees,
+      'degrees',
+      'Expected a quarter turn',
+    ),
+  };
+
+  Size get displaySize {
+    final rotation = imageRotation;
+    return rotation % 180 == 0
+        ? Size(width.toDouble(), height.toDouble())
+        : Size(height.toDouble(), width.toDouble());
+  }
+
+  factory NativeCameraInfo.fromMap(Map<dynamic, dynamic> map) =>
+      NativeCameraInfo(
+        textureId: (map['textureId'] as num).toInt(),
+        width: (map['width'] as num).toInt(),
+        height: (map['height'] as num).toInt(),
+        sensorRotation: (map['sensorRotation'] as num).toInt(),
+        displayRotation: (map['displayRotation'] as num).toInt(),
+      );
 }
 
 /// Real-time detection event from the native CameraX direct analyzer.
@@ -53,12 +91,10 @@ class PoseDetectionEvent {
 /// Sends Flutter camera frames to the platform MediaPipe Pose Landmarker
 /// or orchestrates direct on-device native CameraX analysis.
 class PoseLandmarkBridge {
-  PoseLandmarkBridge({
-    MethodChannel? channel,
-    EventChannel? eventChannel,
-  })  : _channel = channel ?? const MethodChannel('calis/pose_landmarks'),
-        _eventChannel = eventChannel ??
-            const EventChannel('calis/pose_landmarks_stream');
+  PoseLandmarkBridge({MethodChannel? channel, EventChannel? eventChannel})
+    : _channel = channel ?? const MethodChannel('calis/pose_landmarks'),
+      _eventChannel =
+          eventChannel ?? const EventChannel('calis/pose_landmarks_stream');
 
   final MethodChannel _channel;
   final EventChannel _eventChannel;
@@ -78,36 +114,40 @@ class PoseLandmarkBridge {
 
   /// Starts native direct camera analysis (CameraX Preview on Texture + ImageAnalysis on GPU).
   Future<NativeCameraInfo> startNativeCamera() async {
-    final res = await _channel.invokeMapMethod<String, dynamic>('startNativeCamera');
-    if (res == null) throw StateError('Failed to start native camera stream.');
-    return NativeCameraInfo(
-      textureId: res['textureId'] as int,
-      width: (res['width'] as num).toInt(),
-      height: (res['height'] as num).toInt(),
+    final res = await _channel.invokeMapMethod<String, dynamic>(
+      'startNativeCamera',
     );
+    if (res == null) throw StateError('Failed to start native camera stream.');
+    return NativeCameraInfo.fromMap(res);
   }
+
+  // Preview updates also arrive when no body is detected.
+  Stream<NativeCameraInfo> get previewStream =>
+      const EventChannel('calis/camera_preview').receiveBroadcastStream().map(
+        (event) => NativeCameraInfo.fromMap(event as Map<dynamic, dynamic>),
+      );
 
   /// Real-time stream of landmarks and latency emitted directly from native CameraX analyzer.
   Stream<PoseDetectionEvent> get landmarkStream {
-    return _landmarkStream ??= _eventChannel
-        .receiveBroadcastStream()
-        .map((event) {
-          final map = event as Map<dynamic, dynamic>;
-          final raw = map['landmarks'] as List<dynamic>? ?? const [];
-          final latencyMs = (map['latencyMs'] as num?)?.toInt() ?? 0;
-          final width = (map['width'] as num?)?.toInt() ?? 0;
-          final height = (map['height'] as num?)?.toInt() ?? 0;
-          final rotation = (map['rotation'] as num?)?.toInt() ?? 0;
-          final cameraFrameCount = (map['cameraFrameCount'] as num?)?.toInt();
-          return PoseDetectionEvent(
-            landmarks: mapPose(raw),
-            latencyMs: latencyMs,
-            width: width,
-            height: height,
-            rotation: rotation,
-            cameraFrameCount: cameraFrameCount,
-          );
-        });
+    return _landmarkStream ??= _eventChannel.receiveBroadcastStream().map((
+      event,
+    ) {
+      final map = event as Map<dynamic, dynamic>;
+      final raw = map['landmarks'] as List<dynamic>? ?? const [];
+      final latencyMs = (map['latencyMs'] as num?)?.toInt() ?? 0;
+      final width = (map['width'] as num?)?.toInt() ?? 0;
+      final height = (map['height'] as num?)?.toInt() ?? 0;
+      final rotation = (map['rotation'] as num?)?.toInt() ?? 0;
+      final cameraFrameCount = (map['cameraFrameCount'] as num?)?.toInt();
+      return PoseDetectionEvent(
+        landmarks: mapPose(raw),
+        latencyMs: latencyMs,
+        width: width,
+        height: height,
+        rotation: rotation,
+        cameraFrameCount: cameraFrameCount,
+      );
+    });
   }
 
   Future<void> stopNativeCamera() async {
@@ -153,11 +193,12 @@ class PoseLandmarkBridge {
     return mapPose(raw ?? const []);
   }
 
-  /// Selects the more visible side, matching src/vision/pose_extractor.py.
+  /// Selects the more visible side, matching the six joint names in src/vision/pose_extractor.py.
   static Map<String, NormalizedLandmark> mapPose(List<dynamic> pose) {
     if (pose.length < 33) return const {};
     const left = [11, 13, 15, 23, 25, 27];
     const right = [12, 14, 16, 24, 26, 28];
+    // Keep names in the same order as the MediaPipe indices above.
     const names = ['shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle'];
     double visibility(int index) =>
         ((pose[index] as Map)['visibility'] as num?)?.toDouble() ?? 0;

@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:calis_mobile/core/pose_landmark_bridge.dart';
 
+import 'widgets/pose_overlay.dart';
+import 'widgets/mock_skeleton_overlay.dart';
+
+// Run the issue #29 graphics check without loading pose inference.
+const _useMockPose = bool.fromEnvironment('SKELETON_MOCK');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -57,11 +63,10 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
+  // Latest detected joints; an empty map removes the previous skeleton.
+  final _liveJoints = ValueNotifier<Map<String, Offset>>({});
   CameraController? _controller;
   final PoseLandmarkBridge _poseBridge = PoseLandmarkBridge();
-  NativeCameraInfo? _nativeCamera;
-  StreamSubscription<PoseDetectionEvent>? _nativeSubscription;
-  Timer? _fpsTimer;
 
   int _frameCount = 0;
   double _fps = 0.0;
@@ -91,77 +96,10 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _initializeCamera() async {
     try {
-      await _poseBridge.initialize();
+      if (!_useMockPose) await _poseBridge.initialize();
       if (!mounted) return;
 
-      if (Platform.isAndroid) {
-        _nativeCamera = await _poseBridge.startNativeCamera();
-        if (!mounted) return;
-
-        _stopwatch.start();
-        _fpsWindowStart = _stopwatch.elapsedMilliseconds;
-        _frameSize = '${_nativeCamera!.width}x${_nativeCamera!.height}';
-        int lastReportedCameraFrames = 0;
-
-        _nativeSubscription = _poseBridge.landmarkStream.listen((event) {
-          if (event.cameraFrameCount != null) {
-            final count = event.cameraFrameCount!;
-            if (lastReportedCameraFrames > 0 && count >= lastReportedCameraFrames) {
-              _frameCount += (count - lastReportedCameraFrames);
-            } else if (lastReportedCameraFrames == 0) {
-              _frameCount += count > 0 ? count : 1;
-            } else {
-              _frameCount++;
-            }
-            lastReportedCameraFrames = count;
-          } else {
-            _frameCount++;
-          }
-          _processedFrames++;
-          _landmarkCount = event.landmarks.length;
-          if (event.landmarks.length == 6) _framesWithLandmarks++;
-          _totalProcessingMs += event.latencyMs;
-          if (event.latencyMs > _maxProcessingMs) {
-            _maxProcessingMs = event.latencyMs;
-          }
-        }, onError: (error) {
-          debugPrint('Native pose stream error: $error');
-          if (mounted) setState(() => _poseError = error.toString());
-        });
-
-        _fpsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-          if (!mounted) return;
-          final currentTimestamp = _stopwatch.elapsedMilliseconds;
-          final elapsedSeconds = (currentTimestamp - _fpsWindowStart) / 1000.0;
-          if (elapsedSeconds <= 0) return;
-          final currentFps = _frameCount / elapsedSeconds;
-          final currentPoseFps = _framesWithLandmarks / elapsedSeconds;
-          final averageMs = _processedFrames == 0
-              ? 0.0
-              : _totalProcessingMs / _processedFrames;
-          debugPrint(
-            'Native Camera FPS: ${currentFps.toStringAsFixed(1)} ($_frameSize) | '
-            'pose frames: $_processedFrames | '
-            'landmark FPS: ${currentPoseFps.toStringAsFixed(1)} | '
-            'native inference ms avg/max: ${averageMs.toStringAsFixed(1)}/$_maxProcessingMs',
-          );
-          setState(() {
-            _fps = currentFps;
-            _poseFps = currentPoseFps;
-          });
-          _frameCount = 0;
-          _processedFrames = 0;
-          _framesWithLandmarks = 0;
-          _totalProcessingMs = 0;
-          _maxProcessingMs = 0;
-          _fpsWindowStart = currentTimestamp;
-        });
-
-        setState(() {});
-        return;
-      }
-
-      // Fallback for non-Android platforms (e.g. tests or iOS):
+      // Keep the same CameraPreview path verified on the tablet in mock mode.
       final controller = CameraController(
         widget.camera,
         ResolutionPreset.medium,
@@ -177,6 +115,7 @@ class _CameraScreenState extends State<CameraScreen> {
       _stopwatch.start();
       await controller.startImageStream((CameraImage image) {
         if (!mounted) return;
+        _frameSize = '${image.width}x${image.height}';
         final currentTimestamp = _stopwatch.elapsedMilliseconds;
 
         if (_lastFrameTimestamp != null) {
@@ -188,8 +127,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _lastFrameTimestamp = currentTimestamp;
 
         _frameCount++;
-        final elapsedSeconds =
-            (currentTimestamp - _fpsWindowStart) / 1000.0;
+        final elapsedSeconds = (currentTimestamp - _fpsWindowStart) / 1000.0;
         if (elapsedSeconds >= 1.0) {
           setState(() {
             _fps = _frameCount / elapsedSeconds;
@@ -215,7 +153,7 @@ class _CameraScreenState extends State<CameraScreen> {
           _fpsWindowStart = currentTimestamp;
         }
 
-        if (_poseError != null) return;
+        if (_useMockPose || _poseError != null) return;
         if (_poseBusy) {
           _skippedFrames++;
           return;
@@ -244,12 +182,15 @@ class _CameraScreenState extends State<CameraScreen> {
         _controller!.value.deviceOrientation,
         _stopwatch.elapsedMilliseconds,
       );
+      if (!mounted) return;
+      _updateLivePose(landmarks);
       _processedFrames++;
       _landmarkCount = landmarks.length;
       if (landmarks.length == 6) _framesWithLandmarks++;
     } catch (error) {
       debugPrint('Pose detection stopped: $error');
       if (mounted) {
+        _liveJoints.value = {};
         setState(() => _poseError = error.toString());
       } else {
         _poseError = error.toString();
@@ -286,14 +227,24 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
+    _liveJoints.dispose();
     _stopwatch.stop();
-    _fpsTimer?.cancel();
-    _nativeSubscription?.cancel();
-    if (_nativeCamera != null) {
-      unawaited(_poseBridge.stopNativeCamera());
-    }
     unawaited(_disposeCamera());
     super.dispose();
+  }
+
+  void _updateLivePose(
+    Map<String, NormalizedLandmark> landmarks, {
+    int rotation = 0,
+  }) {
+    // The painter needs only each joint's name and normalized x/y position.
+    _liveJoints.value = {
+      for (final entry in landmarks.entries)
+        entry.key: NativeCameraInfo.rotatePoint(
+          Offset(entry.value.x, entry.value.y),
+          rotation,
+        ),
+    };
   }
 
   @override
@@ -302,23 +253,24 @@ class _CameraScreenState extends State<CameraScreen> {
       return Scaffold(body: Center(child: Text('Camera error: $_error')));
     }
 
-    final isNative = _nativeCamera != null;
     final isControllerReady =
         _controller != null && _controller!.value.isInitialized;
 
-    if (!isNative && !isControllerReady) {
+    if (!isControllerReady) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final double width = isNative
-        ? _nativeCamera!.width.toDouble()
-        : _controller!.value.previewSize!.width;
-    final double height = isNative
-        ? _nativeCamera!.height.toDouble()
-        : _controller!.value.previewSize!.height;
+    final width = _controller!.value.previewSize!.width;
+    final height = _controller!.value.previewSize!.height;
 
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    final cameraSize = Size(
+      landscape ? width : height,
+      landscape ? height : width,
+    );
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -328,14 +280,18 @@ class _CameraScreenState extends State<CameraScreen> {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: landscape ? width : height,
-                height: landscape ? height : width,
-                child: isNative
-                    ? Texture(textureId: _nativeCamera!.textureId)
-                    : CameraPreview(_controller!),
+                width: cameraSize.width,
+                height: cameraSize.height,
+                child: CameraPreview(_controller!),
               ),
             ),
           ),
+
+          if (_useMockPose)
+            MockSkeletonOverlay(cameraSize: cameraSize)
+          else
+            PoseOverlay(liveJoints: _liveJoints, cameraSize: cameraSize),
+
           Positioned(
             top: 40,
             left: 16,
@@ -350,12 +306,17 @@ class _CameraScreenState extends State<CameraScreen> {
                     color: Colors.white,
                   ),
                 ),
+                if (_useMockPose)
+                  const Text(
+                    'Mock UI test — synthetic points',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 Text(
                   'Landmarks: ${_poseFps.toStringAsFixed(1)} FPS '
                   '($_landmarkCount joints)',
                   style: const TextStyle(color: Colors.white),
                 ),
-                if (!isNative)
+                if (!_useMockPose)
                   Text(
                     'Skipped while busy: $_lastSkippedFrames',
                     style: const TextStyle(color: Colors.white),

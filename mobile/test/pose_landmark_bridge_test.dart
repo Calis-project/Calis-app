@@ -2,7 +2,7 @@ import 'package:calis_mobile/core/pose_landmark_bridge.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('selects the visible MediaPipe side and matches Python joint names', () {
+  test('selects six joints including the knee from the visible side', () {
     final pose = List.generate(
       33,
       (index) => <String, double>{
@@ -34,11 +34,7 @@ void main() {
 
     final poseWithoutZ = List.generate(
       33,
-      (index) => <String, dynamic>{
-        'x': 0.2,
-        'y': 0.3,
-        'visibility': 0.9,
-      },
+      (index) => <String, dynamic>{'x': 0.2, 'y': 0.3, 'visibility': 0.9},
     );
     final joints = PoseLandmarkBridge.mapPose(poseWithoutZ);
     expect(joints['shoulder']!.z, isNull);
